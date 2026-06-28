@@ -1,0 +1,192 @@
+class Stock {
+  final String symbol;
+  final String name;
+
+  const Stock({required this.symbol, required this.name});
+
+  factory Stock.fromJson(Map<String, dynamic> j) =>
+      Stock(symbol: j['symbol'] as String, name: j['name'] as String);
+}
+
+class Quote {
+  final double price;
+  final double prevClose;
+  final double change;
+  final double changePct;
+
+  const Quote({
+    required this.price,
+    required this.prevClose,
+    required this.change,
+    required this.changePct,
+  });
+
+  factory Quote.fromJson(Map<String, dynamic> j) => Quote(
+        price: (j['price'] as num).toDouble(),
+        prevClose: (j['prev_close'] as num).toDouble(),
+        change: (j['change'] as num).toDouble(),
+        changePct: (j['change_pct'] as num).toDouble(),
+      );
+}
+
+class HistoryPoint {
+  final String date;
+  final double open;
+  final double high;
+  final double low;
+  final double close;
+  final double? sma20;
+  final double? sma50;
+  final double? rsi14;
+  final double? macd;
+  final double? bbUpper;
+  final double? bbLower;
+
+  const HistoryPoint({
+    required this.date,
+    required this.open,
+    required this.high,
+    required this.low,
+    required this.close,
+    this.sma20,
+    this.sma50,
+    this.rsi14,
+    this.macd,
+    this.bbUpper,
+    this.bbLower,
+  });
+
+  factory HistoryPoint.fromJson(Map<String, dynamic> j) => HistoryPoint(
+        date: j['Date'] as String,
+        open: (j['Open'] as num).toDouble(),
+        high: (j['High'] as num).toDouble(),
+        low: (j['Low'] as num).toDouble(),
+        close: (j['Close'] as num).toDouble(),
+        sma20: j['SMA_20'] != null ? (j['SMA_20'] as num).toDouble() : null,
+        sma50: j['SMA_50'] != null ? (j['SMA_50'] as num).toDouble() : null,
+        rsi14: j['RSI_14'] != null ? (j['RSI_14'] as num).toDouble() : null,
+        macd: j['MACD'] != null ? (j['MACD'] as num).toDouble() : null,
+        bbUpper: j['BB_upper'] != null ? (j['BB_upper'] as num).toDouble() : null,
+        bbLower: j['BB_lower'] != null ? (j['BB_lower'] as num).toDouble() : null,
+      );
+}
+
+class TechnicalSignal {
+  final int score;
+  final String label;
+  final List<String> reasons;
+
+  const TechnicalSignal({
+    required this.score,
+    required this.label,
+    required this.reasons,
+  });
+
+  factory TechnicalSignal.fromJson(Map<String, dynamic> j) => TechnicalSignal(
+        score: (j['score'] as num).toInt(),
+        label: j['label'] as String,
+        reasons: List<String>.from(j['reasons'] as List),
+      );
+}
+
+class MLSignal {
+  final bool available;
+  final double? probabilityUp;
+  final int? horizonDays;
+  final double? backtestAccuracy;
+  final int? samplesUsed;
+  final String? reason;
+
+  const MLSignal({
+    required this.available,
+    this.probabilityUp,
+    this.horizonDays,
+    this.backtestAccuracy,
+    this.samplesUsed,
+    this.reason,
+  });
+
+  factory MLSignal.fromJson(Map<String, dynamic> j) => MLSignal(
+        available: j['available'] as bool,
+        probabilityUp: j['probability_up'] != null ? (j['probability_up'] as num).toDouble() : null,
+        horizonDays: j['horizon_days'] != null ? (j['horizon_days'] as num).toInt() : null,
+        backtestAccuracy: j['backtest_accuracy'] != null ? (j['backtest_accuracy'] as num).toDouble() : null,
+        samplesUsed: j['samples_used'] != null ? (j['samples_used'] as num).toInt() : null,
+        reason: j['reason'] as String?,
+      );
+}
+
+class SignalResult {
+  final double compositeScore;
+  final TechnicalSignal technical;
+  final MLSignal ml;
+
+  const SignalResult({
+    required this.compositeScore,
+    required this.technical,
+    required this.ml,
+  });
+
+  factory SignalResult.fromJson(Map<String, dynamic> j) => SignalResult(
+        compositeScore: (j['composite_score'] as num).toDouble(),
+        technical: TechnicalSignal.fromJson(j['technical'] as Map<String, dynamic>),
+        ml: MLSignal.fromJson(j['ml'] as Map<String, dynamic>),
+      );
+}
+
+class MoverStock {
+  final String symbol;
+  final String name;
+  final double price;
+  final double dayChangePct;
+  final double compositeScore;
+  final String technicalLabel;
+  final double? mlProbUp;
+
+  const MoverStock({
+    required this.symbol,
+    required this.name,
+    required this.price,
+    required this.dayChangePct,
+    required this.compositeScore,
+    required this.technicalLabel,
+    this.mlProbUp,
+  });
+
+  factory MoverStock.fromJson(Map<String, dynamic> j) => MoverStock(
+        symbol: j['symbol'] as String,
+        name: j['name'] as String,
+        price: (j['price'] as num).toDouble(),
+        dayChangePct: (j['day_change_pct'] as num).toDouble(),
+        compositeScore: (j['composite_score'] as num).toDouble(),
+        technicalLabel: j['technical_label'] as String,
+        mlProbUp: j['ml_prob_up'] != null ? (j['ml_prob_up'] as num).toDouble() : null,
+      );
+}
+
+class ReturnResult {
+  final double startPrice;
+  final double endPrice;
+  final double pctReturn;
+  final double cagr;
+  final double annualizedVolatility;
+  final int days;
+
+  const ReturnResult({
+    required this.startPrice,
+    required this.endPrice,
+    required this.pctReturn,
+    required this.cagr,
+    required this.annualizedVolatility,
+    required this.days,
+  });
+
+  factory ReturnResult.fromJson(Map<String, dynamic> j) => ReturnResult(
+        startPrice: (j['start_price'] as num).toDouble(),
+        endPrice: (j['end_price'] as num).toDouble(),
+        pctReturn: (j['pct_return'] as num).toDouble(),
+        cagr: (j['cagr'] as num).toDouble(),
+        annualizedVolatility: (j['annualized_volatility'] as num).toDouble(),
+        days: (j['days'] as num).toInt(),
+      );
+}
