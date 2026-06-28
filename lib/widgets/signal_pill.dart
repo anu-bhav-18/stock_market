@@ -16,13 +16,13 @@ class SignalPill extends StatelessWidget {
         bg = AppTheme.green;
         fg = Colors.white;
       case 'Buy':
-        bg = AppTheme.green.withOpacity(0.15);
+        bg = AppTheme.green.withValues(alpha: 0.15);
         fg = AppTheme.green;
       case 'Strong Sell':
         bg = AppTheme.red;
         fg = Colors.white;
       case 'Sell':
-        bg = AppTheme.red.withOpacity(0.15);
+        bg = AppTheme.red.withValues(alpha: 0.15);
         fg = AppTheme.red;
       default:
         bg = Colors.grey.shade200;

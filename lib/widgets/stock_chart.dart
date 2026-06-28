@@ -72,7 +72,7 @@ class StockChart extends StatelessWidget {
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppTheme.green.withOpacity(0.08),
+                color: AppTheme.green.withValues(alpha: 0.08),
               ),
             ),
             if (sma20Spots.isNotEmpty)

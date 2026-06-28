@@ -76,7 +76,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppTheme.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppTheme.red.withValues(alpha:0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text('Error: $_error', style: const TextStyle(color: AppTheme.red)),
               ),
             ),
@@ -102,7 +102,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: _results!.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, i) => _MoverCard(stock: _results![i], rank: i + 1),
               ),
             ),

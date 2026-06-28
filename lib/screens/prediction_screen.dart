@@ -315,7 +315,7 @@ class _ErrorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.red.withOpacity(0.1),
+        color: AppTheme.red.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text('Error: $message', style: const TextStyle(color: AppTheme.red)),

@@ -161,7 +161,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
+                        color: Colors.orange.withValues(alpha:0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -174,7 +174,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppTheme.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: AppTheme.red.withValues(alpha:0.1), borderRadius: BorderRadius.circular(8)),
                     child: Text('Error: $_error', style: const TextStyle(color: AppTheme.red)),
                   ),
                 ],

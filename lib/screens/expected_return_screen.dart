@@ -119,7 +119,7 @@ class _ExpectedReturnScreenState extends State<ExpectedReturnScreen> {
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppTheme.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: AppTheme.red.withValues(alpha:0.1), borderRadius: BorderRadius.circular(8)),
                     child: Text('Error: $_error', style: const TextStyle(color: AppTheme.red)),
                   ),
                 ],
