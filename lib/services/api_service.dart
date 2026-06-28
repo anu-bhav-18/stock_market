@@ -10,7 +10,7 @@ class ApiService {
   // ──────────────────────────────────────────────────────────────────────────
   static const String base = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'https://stock-market-sandy-theta.vercel.app',
   );
 
   static Future<T> _get<T>(String path, T Function(dynamic) parse) async {
