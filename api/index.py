@@ -7,9 +7,28 @@ Vercel:     deployed automatically via vercel.json
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
 import pandas as pd
+import numpy as np
+
+
+def _jsonify(obj):
+    """Recursively convert numpy/pandas scalars to Python natives for JSON."""
+    if isinstance(obj, dict):
+        return {k: _jsonify(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_jsonify(v) for v in obj]
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    if isinstance(obj, float) and (obj != obj):   # NaN
+        return None
+    return obj
 
 # Vercel filesystem is read-only except /tmp — point yfinance cache there
 yf.set_tz_cache_location("/tmp")
@@ -155,7 +174,8 @@ def get_history(symbol: str, period: str = Query(default="6mo")):
     cols = ["Date", "Open", "High", "Low", "Close", "Volume",
             "SMA_20", "SMA_50", "RSI_14", "MACD", "BB_upper", "BB_lower"]
     cols = [c for c in cols if c in df.columns]
-    return df[cols].replace({float("nan"): None}).to_dict(orient="records")
+    records = df[cols].replace({float("nan"): None}).to_dict(orient="records")
+    return JSONResponse(content=_jsonify(records))
 
 
 @app.get("/signal/{symbol}")
@@ -166,7 +186,7 @@ def get_signal(symbol: str, horizon: int = Query(default=5)):
     try:
         result = _composite(df, horizon)
         result["patterns"] = detect_patterns(df)
-        return result
+        return JSONResponse(content=_jsonify(result))
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"Signal error: {str(e)} | {traceback.format_exc()[-300:]}")
@@ -212,7 +232,7 @@ def screener(
                 results.append(r)
 
     results.sort(key=lambda x: x["composite_score"], reverse=True)
-    return results
+    return JSONResponse(content=_jsonify(results))
 
 
 @app.get("/stock/{symbol}")
