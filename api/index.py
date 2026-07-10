@@ -11,6 +11,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
 import pandas as pd
 
+# Vercel filesystem is read-only except /tmp — point yfinance cache there
+yf.set_tz_cache_location("/tmp")
+
 from .utils.indicators import add_indicators, technical_signal, historical_return
 from .utils.stock_list import (
     ALL_STOCKS, INDICES, get_all_symbols, get_symbols_for_index, get_index_names
@@ -152,7 +155,8 @@ def get_signal(symbol: str, horizon: int = Query(default=5)):
         result["patterns"] = detect_patterns(df)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Signal error: {str(e)}")
+        import traceback
+        raise HTTPException(status_code=500, detail=f"Signal error: {str(e)} | {traceback.format_exc()[-300:]}")
 
 
 @app.get("/screener")
