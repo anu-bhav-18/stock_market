@@ -202,7 +202,7 @@ def screener(
 
     def _process(symbol):
         try:
-            df = _history(symbol, period="6mo")
+            df = _history(symbol, period="3mo")
             if df.empty or len(df) < 50:
                 return None
             result = _composite(df, horizon)
@@ -225,7 +225,7 @@ def screener(
             return None
 
     results = []
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    with ThreadPoolExecutor(max_workers=10) as ex:
         futures = {ex.submit(_process, s): s for s in symbols}
         for f in as_completed(futures):
             r = f.result()
@@ -319,13 +319,22 @@ def intraday_scan(
 ):
     """
     Scan an index for intraday signals (VWAP, ORB, RSI, volume).
-    Uses Bank/IT indices by default — smaller sets scan faster.
+    Uses parallel fetching for speed within Vercel's time limits.
     """
     if interval not in ("5m", "15m", "30m"):
         raise HTTPException(status_code=400, detail="interval must be 5m, 15m, or 30m")
     symbols = get_symbols_for_index(index)
-    results = scan_intraday(symbols, interval=interval)
-    return results
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {ex.submit(intraday_signal, s, interval): s for s in symbols}
+        for f in as_completed(futures):
+            r = f.result()
+            if r:
+                results.append(r)
+    order = {"ORB Breakout": 0, "Strong Buy": 1, "Buy": 2, "Neutral": 3,
+             "ORB Breakdown": 4, "Strong Sell": 5, "Sell": 6}
+    results.sort(key=lambda x: order.get(x["signal"], 9))
+    return JSONResponse(content=_jsonify(results))
 
 
 @app.get("/intraday/{symbol}")

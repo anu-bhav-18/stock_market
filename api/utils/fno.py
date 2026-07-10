@@ -37,12 +37,16 @@ def fetch_option_chain(symbol: str) -> dict:
     # Spot price
     try:
         fast = tk.fast_info
-        spot = float(fast.get("lastPrice") or fast.get("last_price") or 0)
+        spot = float(getattr(fast, "last_price", None) or getattr(fast, "regularMarketPrice", None) or 0)
         if spot == 0:
             hist = tk.history(period="2d")
             spot = float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
     except Exception:
-        spot = 0.0
+        try:
+            hist = tk.history(period="2d")
+            spot = float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
+        except Exception:
+            spot = 0.0
 
     # Expiry dates
     try:
