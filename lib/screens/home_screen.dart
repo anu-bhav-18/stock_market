@@ -126,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('StockSense 📈'),
         leading: Builder(builder: (ctx) => IconButton(
           icon: const Icon(Icons.menu_rounded),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
+          onPressed: () => ctx.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
         )),
         actions: [
           if (_selected != null)
