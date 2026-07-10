@@ -1,0 +1,20 @@
+# Ignore everything except the Python API
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+android/
+ios/
+web/
+windows/
+linux/
+macos/
+lib/
+test/
+pubspec.yaml
+pubspec.lock
+*.dart
+*.gradle
+*.xml
+*.iml
