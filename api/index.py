@@ -11,17 +11,18 @@ import yfinance as yf
 import pandas as pd
 
 from .utils.indicators import add_indicators, technical_signal, historical_return
-from .utils.stock_list import NIFTY_50, get_all_symbols
+from .utils.stock_list import (
+    ALL_STOCKS, INDICES, get_all_symbols, get_symbols_for_index, get_index_names
+)
+from .utils.fno import fetch_option_chain, parse_option_chain, FNO_INDICES
 
-# ML is optional — if sklearn is unavailable (e.g. package size issues) the
-# technical-only signal is used instead.
 try:
     from .utils.ml_model import predict_probability_up as _ml_predict
     _ML_AVAILABLE = True
 except Exception:
     _ML_AVAILABLE = False
 
-app = FastAPI(title="StockSense API", version="1.0.0")
+app = FastAPI(title="StockSense API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,23 +87,28 @@ def _composite(df: pd.DataFrame, horizon: int) -> dict:
     tech = technical_signal(data)
     ml = _predict_ml(df, horizon)
     tech_bull = (tech["score"] + 100) / 2
-    if ml.get("available"):
-        composite = round(0.65 * tech_bull + 0.35 * ml["probability_up"] * 100, 1)
-    else:
-        composite = round(tech_bull, 1)
+    composite = round(
+        0.65 * tech_bull + 0.35 * ml["probability_up"] * 100, 1
+    ) if ml.get("available") else round(tech_bull, 1)
     return {"composite_score": composite, "technical": tech, "ml": ml}
 
 
-# ---------- Routes ----------
+# ---------- Stock routes ----------
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "StockSense API", "ml_available": _ML_AVAILABLE}
+    return {"status": "ok", "service": "StockSense API v2", "ml_available": _ML_AVAILABLE}
+
+
+@app.get("/indices")
+def list_indices():
+    return [{"name": n, "count": len(v)} for n, v in INDICES.items()]
 
 
 @app.get("/stocks")
-def list_stocks():
-    return [{"symbol": k, "name": v} for k, v in NIFTY_50.items()]
+def list_stocks(index: str = Query(default="Nifty 50")):
+    stocks = INDICES.get(index, {}) if index != "All" else ALL_STOCKS
+    return [{"symbol": k, "name": v} for k, v in stocks.items()]
 
 
 @app.get("/quote/{symbol}")
@@ -135,9 +141,13 @@ def get_signal(symbol: str, horizon: int = Query(default=5)):
 
 
 @app.get("/screener")
-def screener(horizon: int = Query(default=5)):
+def screener(
+    index: str = Query(default="Nifty 50"),
+    horizon: int = Query(default=5),
+):
+    symbols = get_symbols_for_index(index)
     results = []
-    for symbol in get_all_symbols():
+    for symbol in symbols:
         df = _history(symbol, period="1y")
         if df.empty or len(df) < 60:
             continue
@@ -147,7 +157,8 @@ def screener(horizon: int = Query(default=5)):
         day_chg = (last - prev) / prev * 100 if prev else 0.0
         results.append({
             "symbol": symbol.replace(".NS", ""),
-            "name": NIFTY_50[symbol],
+            "full_symbol": symbol,
+            "name": ALL_STOCKS.get(symbol, symbol),
             "price": last,
             "day_change_pct": day_chg,
             "composite_score": result["composite_score"],
@@ -167,3 +178,36 @@ def get_return(symbol: str, start: str = Query(...), end: str = Query(...)):
     if not result:
         raise HTTPException(status_code=422, detail="Not enough data points in range")
     return result
+
+
+# ---------- F&O routes ----------
+
+@app.get("/fno/symbols")
+def fno_symbols():
+    """List of F&O index symbols and top F&O stocks."""
+    fno_stocks = [
+        {"symbol": k.replace(".NS", ""), "name": v, "type": "stock"}
+        for k, v in ALL_STOCKS.items()
+    ]
+    indices = [{"symbol": s, "name": s, "type": "index"} for s in FNO_INDICES]
+    return {"indices": indices, "stocks": fno_stocks[:50]}
+
+
+@app.get("/fno/chain/{symbol}")
+def option_chain(symbol: str, expiry: str = Query(default=None)):
+    try:
+        raw = fetch_option_chain(symbol)
+        result = parse_option_chain(raw, expiry=expiry)
+
+        # Return only ATM ± 15 strikes to keep payload small
+        spot = result["spot"]
+        strikes = result["strikes"]
+        if spot > 0 and strikes:
+            strikes_sorted = sorted(strikes, key=lambda s: abs(s["strike"] - spot))
+            atm_strikes = set(s["strike"] for s in strikes_sorted[:31])
+            result["strikes"] = [s for s in strikes if s["strike"] in atm_strikes]
+            result["strikes"].sort(key=lambda s: s["strike"])
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"NSE data unavailable: {str(e)}")

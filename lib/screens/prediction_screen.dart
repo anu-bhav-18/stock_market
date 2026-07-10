@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -66,7 +66,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🔮 Stock Prediction')),
+      appBar: AppBar(title: const Text('ðŸ”® Stock Prediction')),
       body: _loadingStocks
           ? const Center(child: CircularProgressIndicator(color: AppTheme.green))
           : ListView(
@@ -85,7 +85,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: _horizon,
+                        initialValue: _horizon,
                         decoration: const InputDecoration(labelText: 'Horizon'),
                         items: _horizons
                             .map((h) => DropdownMenuItem(value: h, child: Text('$h days')))
@@ -223,7 +223,7 @@ class _ReasonsCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• ', style: TextStyle(color: AppTheme.green, fontWeight: FontWeight.w700)),
+                  const Text('â€¢ ', style: TextStyle(color: AppTheme.green, fontWeight: FontWeight.w700)),
                   Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
                 ],
               ),
@@ -295,7 +295,7 @@ class _StockDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Stock>(
-      value: selected,
+      initialValue: selected,
       decoration: const InputDecoration(labelText: 'Stock'),
       isExpanded: true,
       items: stocks
@@ -329,9 +329,10 @@ class _Disclaimer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      '⚠️ Educational use only. Predictions are statistical estimates from historical data. Not investment advice.',
+      'âš ï¸ Educational use only. Predictions are statistical estimates from historical data. Not investment advice.',
       style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
       textAlign: TextAlign.center,
     );
   }
 }
+

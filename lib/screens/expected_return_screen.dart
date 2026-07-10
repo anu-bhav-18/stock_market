@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -81,7 +81,7 @@ class _ExpectedReturnScreenState extends State<ExpectedReturnScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('💰 Expected Return')),
+      appBar: AppBar(title: const Text('ðŸ’° Expected Return')),
       body: _loadingStocks
           ? const Center(child: CircularProgressIndicator(color: AppTheme.green))
           : ListView(
@@ -89,7 +89,7 @@ class _ExpectedReturnScreenState extends State<ExpectedReturnScreen> {
               children: [
                 if (_stocks.isNotEmpty)
                   DropdownButtonFormField<Stock>(
-                    value: _selected,
+                    initialValue: _selected,
                     decoration: const InputDecoration(labelText: 'Stock'),
                     isExpanded: true,
                     items: _stocks
@@ -129,7 +129,7 @@ class _ExpectedReturnScreenState extends State<ExpectedReturnScreen> {
                 ],
                 const SizedBox(height: 24),
                 const Text(
-                  '⚠️ Historical returns do not guarantee future performance.',
+                  'âš ï¸ Historical returns do not guarantee future performance.',
                   style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),
@@ -197,8 +197,8 @@ class _ResultsCard extends StatelessWidget {
             Text(stock.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             Text('Over ${result.days} trading days', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
             const Divider(height: 20),
-            _MetricRow(label: 'Start Price', value: '₹${result.startPrice.toStringAsFixed(2)}'),
-            _MetricRow(label: 'End Price', value: '₹${result.endPrice.toStringAsFixed(2)}'),
+            _MetricRow(label: 'Start Price', value: 'â‚¹${result.startPrice.toStringAsFixed(2)}'),
+            _MetricRow(label: 'End Price', value: 'â‚¹${result.endPrice.toStringAsFixed(2)}'),
             const SizedBox(height: 4),
             _MetricRow(
               label: 'Total Return',
@@ -251,3 +251,4 @@ class _MetricRow extends StatelessWidget {
     );
   }
 }
+

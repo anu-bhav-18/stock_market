@@ -1,3 +1,8 @@
+"""
+Multi-index NSE stock universe.
+Symbols use the '.NS' suffix required by yfinance.
+"""
+
 NIFTY_50 = {
     "RELIANCE.NS": "Reliance Industries",
     "TCS.NS": "Tata Consultancy Services",
@@ -51,6 +56,226 @@ NIFTY_50 = {
     "SHRIRAMFIN.NS": "Shriram Finance",
 }
 
+NIFTY_NEXT_50 = {
+    "ABB.NS": "ABB India",
+    "AMBUJACEM.NS": "Ambuja Cements",
+    "BANKBARODA.NS": "Bank of Baroda",
+    "BERGEPAINT.NS": "Berger Paints",
+    "BEL.NS": "Bharat Electronics",
+    "BHEL.NS": "Bharat Heavy Electricals",
+    "BOSCHLTD.NS": "Bosch",
+    "CANBK.NS": "Canara Bank",
+    "CHOLAFIN.NS": "Cholamandalam Investment",
+    "COLPAL.NS": "Colgate-Palmolive",
+    "CUMMINSIND.NS": "Cummins India",
+    "DLF.NS": "DLF",
+    "GAIL.NS": "GAIL India",
+    "GODREJCP.NS": "Godrej Consumer Products",
+    "GODREJPROP.NS": "Godrej Properties",
+    "HAVELLS.NS": "Havells India",
+    "HEROMOTOCO.NS": "Hero MotoCorp",
+    "HINDPETRO.NS": "Hindustan Petroleum",
+    "ICICIGI.NS": "ICICI Lombard General Insurance",
+    "ICICIPRULI.NS": "ICICI Prudential Life Insurance",
+    "INDUSTOWER.NS": "Indus Towers",
+    "IOC.NS": "Indian Oil Corp",
+    "IRCTC.NS": "IRCTC",
+    "JINDALSTEL.NS": "Jindal Steel & Power",
+    "LICI.NS": "LIC of India",
+    "LTTS.NS": "L&T Technology Services",
+    "LUPIN.NS": "Lupin",
+    "MCDOWELL-N.NS": "United Spirits",
+    "MPHASIS.NS": "Mphasis",
+    "NHPC.NS": "NHPC",
+    "PAGEIND.NS": "Page Industries",
+    "PERSISTENT.NS": "Persistent Systems",
+    "PNB.NS": "Punjab National Bank",
+    "RECLTD.NS": "REC",
+    "SBICARD.NS": "SBI Cards",
+    "SIEMENS.NS": "Siemens",
+    "SRF.NS": "SRF",
+    "TORNTPHARM.NS": "Torrent Pharmaceuticals",
+    "TRENT.NS": "Trent",
+    "TVSMOTOR.NS": "TVS Motor",
+    "VBL.NS": "Varun Beverages",
+    "VEDL.NS": "Vedanta",
+    "ZYDUSLIFE.NS": "Zydus Lifesciences",
+    "PIIND.NS": "PI Industries",
+    "NYKAA.NS": "FSN E-Commerce (Nykaa)",
+    "ADANIGREEN.NS": "Adani Green Energy",
+    "ADANITRANS.NS": "Adani Transmission",
+    "GICRE.NS": "General Insurance Corp",
+    "OBEROIRLTY.NS": "Oberoi Realty",
+    "MAXHEALTH.NS": "Max Healthcare",
+}
 
-def get_all_symbols():
-    return list(NIFTY_50.keys())
+NIFTY_BANK = {
+    "HDFCBANK.NS": "HDFC Bank",
+    "ICICIBANK.NS": "ICICI Bank",
+    "KOTAKBANK.NS": "Kotak Mahindra Bank",
+    "AXISBANK.NS": "Axis Bank",
+    "SBIN.NS": "State Bank of India",
+    "INDUSINDBK.NS": "IndusInd Bank",
+    "BANKBARODA.NS": "Bank of Baroda",
+    "CANBK.NS": "Canara Bank",
+    "PNB.NS": "Punjab National Bank",
+    "FEDERALBNK.NS": "Federal Bank",
+    "IDFCFIRSTB.NS": "IDFC First Bank",
+    "BANDHANBNK.NS": "Bandhan Bank",
+}
+
+NIFTY_IT = {
+    "TCS.NS": "Tata Consultancy Services",
+    "INFY.NS": "Infosys",
+    "HCLTECH.NS": "HCL Technologies",
+    "WIPRO.NS": "Wipro",
+    "TECHM.NS": "Tech Mahindra",
+    "LTIM.NS": "LTIMindtree",
+    "MPHASIS.NS": "Mphasis",
+    "COFORGE.NS": "Coforge",
+    "PERSISTENT.NS": "Persistent Systems",
+    "LTTS.NS": "L&T Technology Services",
+}
+
+NIFTY_PHARMA = {
+    "SUNPHARMA.NS": "Sun Pharmaceutical",
+    "DRREDDY.NS": "Dr. Reddy's Labs",
+    "CIPLA.NS": "Cipla",
+    "DIVISLAB.NS": "Divi's Laboratories",
+    "LUPIN.NS": "Lupin",
+    "TORNTPHARM.NS": "Torrent Pharmaceuticals",
+    "AUROPHARMA.NS": "Aurobindo Pharma",
+    "ALKEM.NS": "Alkem Laboratories",
+    "IPCALAB.NS": "IPCA Laboratories",
+    "ZYDUSLIFE.NS": "Zydus Lifesciences",
+    "BIOCON.NS": "Biocon",
+    "GLENMARK.NS": "Glenmark Pharmaceuticals",
+}
+
+NIFTY_AUTO = {
+    "MARUTI.NS": "Maruti Suzuki",
+    "TATAMOTORS.NS": "Tata Motors",
+    "BAJAJ-AUTO.NS": "Bajaj Auto",
+    "EICHERMOT.NS": "Eicher Motors",
+    "HEROMOTOCO.NS": "Hero MotoCorp",
+    "M&M.NS": "Mahindra & Mahindra",
+    "TVSMOTOR.NS": "TVS Motor",
+    "BOSCHLTD.NS": "Bosch",
+    "MOTHERSON.NS": "Samvardhana Motherson",
+    "BALKRISIND.NS": "Balkrishna Industries",
+    "ASHOKLEY.NS": "Ashok Leyland",
+    "ESCORTS.NS": "Escorts Kubota",
+}
+
+NIFTY_FMCG = {
+    "HINDUNILVR.NS": "Hindustan Unilever",
+    "ITC.NS": "ITC",
+    "NESTLEIND.NS": "Nestle India",
+    "BRITANNIA.NS": "Britannia Industries",
+    "DABUR.NS": "Dabur India",
+    "MARICO.NS": "Marico",
+    "GODREJCP.NS": "Godrej Consumer Products",
+    "COLPAL.NS": "Colgate-Palmolive",
+    "VBL.NS": "Varun Beverages",
+    "TATACONSUM.NS": "Tata Consumer Products",
+    "EMAMILTD.NS": "Emami",
+    "RADICO.NS": "Radico Khaitan",
+}
+
+NIFTY_METAL = {
+    "TATASTEEL.NS": "Tata Steel",
+    "JSWSTEEL.NS": "JSW Steel",
+    "HINDALCO.NS": "Hindalco Industries",
+    "COALINDIA.NS": "Coal India",
+    "VEDL.NS": "Vedanta",
+    "NMDC.NS": "NMDC",
+    "SAIL.NS": "Steel Authority of India",
+    "JINDALSTEL.NS": "Jindal Steel & Power",
+    "APLAPOLLO.NS": "APL Apollo Tubes",
+    "HINDCOPPER.NS": "Hindustan Copper",
+    "NATIONALUM.NS": "National Aluminium",
+    "WELCORP.NS": "Welspun Corp",
+}
+
+NIFTY_MIDCAP_50 = {
+    "ABCAPITAL.NS": "Aditya Birla Capital",
+    "ASTRAL.NS": "Astral",
+    "AUROPHARMA.NS": "Aurobindo Pharma",
+    "AUBANK.NS": "AU Small Finance Bank",
+    "BALKRISIND.NS": "Balkrishna Industries",
+    "BANKINDIA.NS": "Bank of India",
+    "BHARATFORG.NS": "Bharat Forge",
+    "BSOFT.NS": "BIRLASOFT",
+    "CAMS.NS": "CAMS",
+    "CGPOWER.NS": "CG Power",
+    "COFORGE.NS": "Coforge",
+    "CONCOR.NS": "Container Corp",
+    "CROMPTON.NS": "Crompton Greaves Consumer",
+    "CESC.NS": "CESC",
+    "DALBHARAT.NS": "Dalmia Bharat",
+    "DEEPAKNTR.NS": "Deepak Nitrite",
+    "ESCORTS.NS": "Escorts Kubota",
+    "FEDERALBNK.NS": "Federal Bank",
+    "GLENMARK.NS": "Glenmark Pharmaceuticals",
+    "GNFC.NS": "Gujarat Narmada Valley",
+    "GMRINFRA.NS": "GMR Airports",
+    "HAL.NS": "Hindustan Aeronautics",
+    "IDFCFIRSTB.NS": "IDFC First Bank",
+    "INDHOTEL.NS": "Indian Hotels",
+    "INDIANB.NS": "Indian Bank",
+    "INDIAMART.NS": "IndiaMART InterMESH",
+    "JKCEMENT.NS": "JK Cement",
+    "JUBLPHARMA.NS": "Jubilant Pharmova",
+    "KPITTECH.NS": "KPIT Technologies",
+    "MAXHEALTH.NS": "Max Healthcare",
+    "MFSL.NS": "Max Financial Services",
+    "MGL.NS": "Mahanagar Gas",
+    "MOTHERSON.NS": "Samvardhana Motherson",
+    "MUTHOOTFIN.NS": "Muthoot Finance",
+    "NAUKRI.NS": "Info Edge (Naukri)",
+    "OBEROIRLTY.NS": "Oberoi Realty",
+    "OFSS.NS": "Oracle Financial Services",
+    "PETRONET.NS": "Petronet LNG",
+    "PIIND.NS": "PI Industries",
+    "POLYCAB.NS": "Polycab India",
+    "PFC.NS": "Power Finance Corp",
+    "SUPREMEIND.NS": "Supreme Industries",
+    "TATACOMM.NS": "Tata Communications",
+    "TORNTPOWER.NS": "Torrent Power",
+    "TRENT.NS": "Trent",
+    "UNIONBANK.NS": "Union Bank of India",
+    "VOLTAS.NS": "Voltas",
+    "WHIRLPOOL.NS": "Whirlpool of India",
+    "ZEEL.NS": "Zee Entertainment",
+    "ZOMATO.NS": "Zomato",
+}
+
+# Map of index name → dict of stocks
+INDICES = {
+    "Nifty 50": NIFTY_50,
+    "Nifty Next 50": NIFTY_NEXT_50,
+    "Nifty Bank": NIFTY_BANK,
+    "Nifty IT": NIFTY_IT,
+    "Nifty Pharma": NIFTY_PHARMA,
+    "Nifty Auto": NIFTY_AUTO,
+    "Nifty FMCG": NIFTY_FMCG,
+    "Nifty Metal": NIFTY_METAL,
+    "Nifty Midcap 50": NIFTY_MIDCAP_50,
+}
+
+# Union of all stocks
+ALL_STOCKS: dict[str, str] = {}
+for _stocks in INDICES.values():
+    ALL_STOCKS.update(_stocks)
+
+
+def get_all_symbols() -> list[str]:
+    return list(ALL_STOCKS.keys())
+
+
+def get_symbols_for_index(index_name: str) -> list[str]:
+    return list(INDICES.get(index_name, NIFTY_50).keys())
+
+
+def get_index_names() -> list[str]:
+    return list(INDICES.keys())

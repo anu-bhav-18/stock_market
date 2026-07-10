@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -32,7 +32,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🚀 Top Movers')),
+      appBar: AppBar(title: const Text('ðŸš€ Top Movers')),
       body: Column(
         children: [
           Padding(
@@ -43,7 +43,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: _horizon,
+                        initialValue: _horizon,
                         decoration: const InputDecoration(labelText: 'Horizon'),
                         items: _horizons
                             .map((h) => DropdownMenuItem(value: h, child: Text('$h trading days')))
@@ -65,7 +65,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
                   const SizedBox(height: 12),
                   const LinearProgressIndicator(color: AppTheme.green),
                   const SizedBox(height: 6),
-                  const Text('Analysing 50 stocks, this may take a minute…',
+                  const Text('Analysing 50 stocks, this may take a minuteâ€¦',
                       style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 ],
               ],
@@ -91,7 +91,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
                     Text('Press Scan to rank all Nifty 50 stocks',
                         style: TextStyle(color: AppTheme.textSecondary)),
                     SizedBox(height: 4),
-                    Text('Fetches live data for 50 stocks — takes ~1 min',
+                    Text('Fetches live data for 50 stocks â€” takes ~1 min',
                         style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                   ],
                 ),
@@ -158,7 +158,7 @@ class _MoverCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('₹${stock.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                Text('â‚¹${stock.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 Text(
                   '${isUp ? '+' : ''}${stock.dayChangePct.toStringAsFixed(2)}%',
                   style: TextStyle(fontSize: 12, color: changeColor, fontWeight: FontWeight.w600),
@@ -181,3 +181,4 @@ class _MoverCard extends StatelessWidget {
     );
   }
 }
+

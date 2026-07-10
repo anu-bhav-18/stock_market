@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
-import 'screens/prediction_screen.dart';
-import 'screens/expected_return_screen.dart';
-import 'screens/top_movers_screen.dart';
-import 'screens/budget_screen.dart';
+import 'screens/signals_screen.dart';
+import 'screens/fno_screen.dart';
+import 'screens/watchlist_screen.dart';
+import 'screens/analyse_screen.dart';
 
 void main() {
   runApp(const StockSenseApp());
@@ -36,18 +36,18 @@ class _ShellState extends State<_Shell> {
 
   static const _screens = <Widget>[
     HomeScreen(),
-    PredictionScreen(),
-    ExpectedReturnScreen(),
-    TopMoversScreen(),
-    BudgetScreen(),
+    SignalsScreen(),
+    FnoScreen(),
+    WatchlistScreen(),
+    AnalyseScreen(),
   ];
 
   static const _items = <BottomNavigationBarItem>[
     BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-    BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), activeIcon: Icon(Icons.auto_graph), label: 'Predict'),
-    BottomNavigationBarItem(icon: Icon(Icons.trending_up_outlined), activeIcon: Icon(Icons.trending_up), label: 'Return'),
-    BottomNavigationBarItem(icon: Icon(Icons.rocket_launch_outlined), activeIcon: Icon(Icons.rocket_launch), label: 'Movers'),
-    BottomNavigationBarItem(icon: Icon(Icons.calculate_outlined), activeIcon: Icon(Icons.calculate), label: 'Budget'),
+    BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Signals'),
+    BottomNavigationBarItem(icon: Icon(Icons.bolt_outlined), activeIcon: Icon(Icons.bolt), label: 'F&O'),
+    BottomNavigationBarItem(icon: Icon(Icons.star_border_rounded), activeIcon: Icon(Icons.star_rounded), label: 'Watchlist'),
+    BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), activeIcon: Icon(Icons.analytics), label: 'Analyse'),
   ];
 
   @override

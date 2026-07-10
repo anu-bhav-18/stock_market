@@ -3,29 +3,34 @@ import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
 class ApiService {
-  // ── Change this to your Vercel URL once deployed ──────────────────────────
-  // Production:  'https://your-project.vercel.app'
-  // Emulator:    'http://10.0.2.2:8000'
-  // Physical dev: 'http://192.168.x.x:8000'
-  // ──────────────────────────────────────────────────────────────────────────
+  // Production (Vercel): update this after deploy
+  // Emulator local dev:  'http://10.0.2.2:8000'
   static const String base = String.fromEnvironment(
     'API_BASE',
     defaultValue: 'https://stock-market-sandy-theta.vercel.app',
   );
 
   static Future<T> _get<T>(String path, T Function(dynamic) parse) async {
-    final uri = Uri.parse('$base$path');
-    final res = await http.get(uri).timeout(const Duration(seconds: 90));
-    if (res.statusCode != 200) {
-      throw Exception('${res.statusCode} ${res.body}');
-    }
+    final res = await http
+        .get(Uri.parse('$base$path'))
+        .timeout(const Duration(seconds: 90));
+    if (res.statusCode != 200) throw Exception('${res.statusCode}: $path');
     return parse(jsonDecode(res.body));
   }
 
-  static Future<List<Stock>> fetchStocks() => _get(
-        '/stocks',
+  // ── Indices & stocks ───────────────────────────────────────────────────────
+
+  static Future<List<StockIndex>> fetchIndices() => _get(
+        '/indices',
+        (d) => (d as List).map((e) => StockIndex.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  static Future<List<Stock>> fetchStocks({String index = 'Nifty 50'}) => _get(
+        '/stocks?index=${Uri.encodeComponent(index)}',
         (d) => (d as List).map((e) => Stock.fromJson(e as Map<String, dynamic>)).toList(),
       );
+
+  // ── Market data ────────────────────────────────────────────────────────────
 
   static Future<Quote> fetchQuote(String symbol) => _get(
         '/quote/$symbol',
@@ -42,8 +47,8 @@ class ApiService {
         (d) => SignalResult.fromJson(d as Map<String, dynamic>),
       );
 
-  static Future<List<MoverStock>> fetchScreener({int horizon = 5}) => _get(
-        '/screener?horizon=$horizon',
+  static Future<List<MoverStock>> fetchScreener({String index = 'Nifty 50', int horizon = 5}) => _get(
+        '/screener?index=${Uri.encodeComponent(index)}&horizon=$horizon',
         (d) => (d as List).map((e) => MoverStock.fromJson(e as Map<String, dynamic>)).toList(),
       );
 
@@ -51,4 +56,14 @@ class ApiService {
         '/return/$symbol?start=$start&end=$end',
         (d) => ReturnResult.fromJson(d as Map<String, dynamic>),
       );
+
+  // ── F&O ───────────────────────────────────────────────────────────────────
+
+  static Future<OptionsChain> fetchOptionsChain(String symbol, {String? expiry}) {
+    final q = expiry != null ? '?expiry=${Uri.encodeComponent(expiry)}' : '';
+    return _get(
+      '/fno/chain/$symbol$q',
+      (d) => OptionsChain.fromJson(d as Map<String, dynamic>),
+    );
+  }
 }
