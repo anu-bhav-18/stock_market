@@ -15,6 +15,9 @@ from .utils.stock_list import (
     ALL_STOCKS, INDICES, get_all_symbols, get_symbols_for_index, get_index_names
 )
 from .utils.fno import fetch_option_chain, parse_option_chain, FNO_INDICES
+from .utils.intraday import intraday_signal, scan_intraday, intraday_chart
+from .utils.levels import pivot_points, support_resistance
+from .utils.patterns import detect_patterns
 
 try:
     from .utils.ml_model import predict_probability_up as _ml_predict
@@ -22,7 +25,7 @@ try:
 except Exception:
     _ML_AVAILABLE = False
 
-app = FastAPI(title="StockSense API", version="2.0.0")
+app = FastAPI(title="StockSense API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +35,7 @@ app.add_middleware(
 )
 
 
-# ---------- Data helpers ----------
+# ── Data helpers ──────────────────────────────────────────────────────────────
 
 def _history(symbol: str, period: str = "1y") -> pd.DataFrame:
     try:
@@ -93,11 +96,11 @@ def _composite(df: pd.DataFrame, horizon: int) -> dict:
     return {"composite_score": composite, "technical": tech, "ml": ml}
 
 
-# ---------- Stock routes ----------
+# ── Basic routes ──────────────────────────────────────────────────────────────
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "StockSense API v2", "ml_available": _ML_AVAILABLE}
+    return {"status": "ok", "service": "StockSense API v3", "ml_available": _ML_AVAILABLE}
 
 
 @app.get("/indices")
@@ -137,7 +140,10 @@ def get_signal(symbol: str, horizon: int = Query(default=5)):
     df = _history(symbol, period="1y")
     if df.empty:
         raise HTTPException(status_code=404, detail="No data available")
-    return _composite(df, horizon)
+    result = _composite(df, horizon)
+    # Attach candlestick patterns
+    result["patterns"] = detect_patterns(df)
+    return result
 
 
 @app.get("/screener")
@@ -155,6 +161,9 @@ def screener(
         last = float(df["Close"].iloc[-1])
         prev = float(df["Close"].iloc[-2]) if len(df) > 1 else last
         day_chg = (last - prev) / prev * 100 if prev else 0.0
+        # Top pattern for display
+        patterns = detect_patterns(df)
+        top_pattern = patterns[0]["name"] if patterns else None
         results.append({
             "symbol": symbol.replace(".NS", ""),
             "full_symbol": symbol,
@@ -164,6 +173,7 @@ def screener(
             "composite_score": result["composite_score"],
             "technical_label": result["technical"]["label"],
             "ml_prob_up": result["ml"].get("probability_up"),
+            "pattern": top_pattern,
         })
     results.sort(key=lambda x: x["composite_score"], reverse=True)
     return results
@@ -180,11 +190,62 @@ def get_return(symbol: str, start: str = Query(...), end: str = Query(...)):
     return result
 
 
-# ---------- F&O routes ----------
+# ── Levels & Patterns ─────────────────────────────────────────────────────────
+
+@app.get("/levels/{symbol}")
+def get_levels(symbol: str):
+    """Pivot points + swing S/R levels for a stock."""
+    df = _history(symbol, period="6mo")
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No data available")
+    pivots = pivot_points(df)
+    sr = support_resistance(df)
+    return {**pivots, **sr}
+
+
+@app.get("/patterns/{symbol}")
+def get_patterns(symbol: str):
+    """Candlestick pattern detection on last 5 daily candles."""
+    df = _history(symbol, period="3mo")
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No data available")
+    return {"patterns": detect_patterns(df)}
+
+
+# ── Intraday ──────────────────────────────────────────────────────────────────
+
+@app.get("/intraday/scan")
+def intraday_scan(
+    index: str = Query(default="Nifty Bank"),
+    interval: str = Query(default="15m"),
+):
+    """
+    Scan an index for intraday signals (VWAP, ORB, RSI, volume).
+    Uses Bank/IT indices by default — smaller sets scan faster.
+    """
+    if interval not in ("5m", "15m", "30m"):
+        raise HTTPException(status_code=400, detail="interval must be 5m, 15m, or 30m")
+    symbols = get_symbols_for_index(index)
+    results = scan_intraday(symbols, interval=interval)
+    return results
+
+
+@app.get("/intraday/{symbol}")
+def get_intraday(symbol: str, interval: str = Query(default="15m")):
+    """Return OHLCV + VWAP candles for today + intraday signal."""
+    if interval not in ("5m", "15m", "30m"):
+        raise HTTPException(status_code=400, detail="interval must be 5m, 15m, or 30m")
+    sig = intraday_signal(symbol, interval=interval)
+    candles = intraday_chart(symbol, interval=interval)
+    if not candles:
+        raise HTTPException(status_code=404, detail="No intraday data — market may be closed")
+    return {"signal": sig, "candles": candles}
+
+
+# ── F&O ───────────────────────────────────────────────────────────────────────
 
 @app.get("/fno/symbols")
 def fno_symbols():
-    """List of F&O index symbols and top F&O stocks."""
     fno_stocks = [
         {"symbol": k.replace(".NS", ""), "name": v, "type": "stock"}
         for k, v in ALL_STOCKS.items()
@@ -199,7 +260,6 @@ def option_chain(symbol: str, expiry: str = Query(default=None)):
         raw = fetch_option_chain(symbol)
         result = parse_option_chain(raw, expiry=expiry)
 
-        # Return only ATM ± 15 strikes to keep payload small
         spot = result["spot"]
         strikes = result["strikes"]
         if spot > 0 and strikes:

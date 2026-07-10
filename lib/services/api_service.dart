@@ -3,8 +3,6 @@ import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
 class ApiService {
-  // Production (Vercel): update this after deploy
-  // Emulator local dev:  'http://10.0.2.2:8000'
   static const String base = String.fromEnvironment(
     'API_BASE',
     defaultValue: 'https://stock-market-sandy-theta.vercel.app',
@@ -55,6 +53,31 @@ class ApiService {
   static Future<ReturnResult> fetchReturn(String symbol, String start, String end) => _get(
         '/return/$symbol?start=$start&end=$end',
         (d) => ReturnResult.fromJson(d as Map<String, dynamic>),
+      );
+
+  // ── Levels & Patterns ──────────────────────────────────────────────────────
+
+  static Future<Levels> fetchLevels(String symbol) => _get(
+        '/levels/$symbol',
+        (d) => Levels.fromJson(d as Map<String, dynamic>),
+      );
+
+  static Future<List<CandlePattern>> fetchPatterns(String symbol) => _get(
+        '/patterns/$symbol',
+        (d) => (d['patterns'] as List)
+            .map((e) => CandlePattern.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  // ── Intraday ───────────────────────────────────────────────────────────────
+
+  static Future<List<IntradayStock>> fetchIntradayScan({
+    String index = 'Nifty Bank',
+    String interval = '15m',
+  }) =>
+      _get(
+        '/intraday/scan?index=${Uri.encodeComponent(index)}&interval=$interval',
+        (d) => (d as List).map((e) => IntradayStock.fromJson(e as Map<String, dynamic>)).toList(),
       );
 
   // ── F&O ───────────────────────────────────────────────────────────────────

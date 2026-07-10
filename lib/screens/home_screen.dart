@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Quote? _quote;
   List<HistoryPoint> _history = [];
   SignalResult? _signal;
+  Levels? _levels;
   bool _loadingStocks = true;
   bool _loadingData = false;
   bool _watched = false;
@@ -80,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _quote = null;
       _history = [];
       _signal = null;
+      _levels = null;
     });
     final watched = await WatchlistService.isWatched(stock.symbol);
     if (mounted) setState(() => _watched = watched);
@@ -89,12 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ApiService.fetchQuote(stock.symbol),
         ApiService.fetchHistory(stock.symbol, period: '6mo'),
         ApiService.fetchSignal(stock.symbol),
+        ApiService.fetchLevels(stock.symbol),
       ]);
       if (mounted) {
         setState(() {
           _quote = results[0] as Quote;
           _history = results[1] as List<HistoryPoint>;
           _signal = results[2] as SignalResult;
+          _levels = results[3] as Levels;
           _loadingData = false;
         });
       }
@@ -158,6 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           quote: _quote,
                           history: _history,
                           signal: _signal,
+                          levels: _levels,
                           loading: _loadingData,
                         ),
                       const SizedBox(height: 16),
@@ -257,11 +262,12 @@ class _StockDetail extends StatelessWidget {
   final Quote? quote;
   final List<HistoryPoint> history;
   final SignalResult? signal;
+  final Levels? levels;
   final bool loading;
 
   const _StockDetail({
     required this.stock, this.quote, required this.history,
-    this.signal, required this.loading,
+    this.signal, this.levels, required this.loading,
   });
 
   @override
@@ -331,6 +337,14 @@ class _StockDetail extends StatelessWidget {
                   ]),
                 )),
               ],
+              if (signal != null && signal!.patterns.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _PatternsRow(patterns: signal!.patterns),
+              ],
+              if (levels != null) ...[
+                const SizedBox(height: 14),
+                _LevelsCard(levels: levels!),
+              ],
             ],
           ],
         ),
@@ -389,6 +403,155 @@ class _Legend extends StatelessWidget {
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
       ]);
+}
+
+class _PatternsRow extends StatelessWidget {
+  final List<CandlePattern> patterns;
+  const _PatternsRow({required this.patterns});
+
+  Color _color(String type) {
+    if (type == 'bullish') return AppTheme.green;
+    if (type == 'bearish') return AppTheme.red;
+    return Colors.orange;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Candlestick Patterns', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6, runSpacing: 6,
+          children: patterns.map((p) => Tooltip(
+            message: p.description,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _color(p.type).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _color(p.type).withValues(alpha: 0.3)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(
+                  p.type == 'bullish' ? Icons.trending_up : p.type == 'bearish' ? Icons.trending_down : Icons.drag_handle,
+                  size: 12, color: _color(p.type),
+                ),
+                const SizedBox(width: 4),
+                Text(p.name, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _color(p.type))),
+              ]),
+            ),
+          )).toList(),
+        ),
+        if (patterns.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(patterns.first.description,
+                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          ),
+      ],
+    );
+  }
+}
+
+class _LevelsCard extends StatelessWidget {
+  final Levels levels;
+  const _LevelsCard({required this.levels});
+
+  @override
+  Widget build(BuildContext context) {
+    final price = levels.current;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Pivot Levels', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        const SizedBox(height: 6),
+        // Resistance levels
+        _LevelRow(label: 'R2', value: levels.r2, price: price, isResistance: true),
+        _LevelRow(label: 'R1', value: levels.r1, price: price, isResistance: true),
+        _LevelRow(label: 'PP', value: levels.pp, price: price, isResistance: null),
+        _LevelRow(label: 'S1', value: levels.s1, price: price, isResistance: false),
+        _LevelRow(label: 'S2', value: levels.s2, price: price, isResistance: false),
+        if (levels.context.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(levels.context, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+        ],
+        // S/R from price history
+        if (levels.resistance.isNotEmpty || levels.support.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const Text('Key S/R Levels (60-day)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          if (levels.resistance.isNotEmpty)
+            Row(children: [
+              const Text('Resistance: ', style: TextStyle(fontSize: 10, color: AppTheme.red)),
+              Expanded(child: Text(
+                levels.resistance.reversed.map((v) => '₹${v.toStringAsFixed(0)}').join('  '),
+                style: const TextStyle(fontSize: 10, color: AppTheme.red, fontWeight: FontWeight.w600),
+              )),
+            ]),
+          if (levels.support.isNotEmpty)
+            Row(children: [
+              const Text('Support: ', style: TextStyle(fontSize: 10, color: AppTheme.green)),
+              Expanded(child: Text(
+                levels.support.map((v) => '₹${v.toStringAsFixed(0)}').join('  '),
+                style: const TextStyle(fontSize: 10, color: AppTheme.green, fontWeight: FontWeight.w600),
+              )),
+            ]),
+        ],
+      ],
+    );
+  }
+}
+
+class _LevelRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final double price;
+  final bool? isResistance; // null = pivot
+
+  const _LevelRow({required this.label, required this.value, required this.price, required this.isResistance});
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrent = (value - price).abs() / price < 0.005;
+    final color = isResistance == null
+        ? AppTheme.blue
+        : isResistance! ? AppTheme.red : AppTheme.green;
+    final distPct = (value - price) / price * 100;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: isCurrent ? color : color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w800,
+                  color: isCurrent ? Colors.white : color,
+                )),
+          ),
+          const SizedBox(width: 8),
+          Text('₹${value.toStringAsFixed(1)}',
+              style: TextStyle(
+                fontSize: 12, fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                color: isCurrent ? color : AppTheme.textPrimary,
+              )),
+          const Spacer(),
+          Text(
+            '${distPct >= 0 ? '+' : ''}${distPct.toStringAsFixed(1)}%',
+            style: TextStyle(fontSize: 10, color: distPct > 0 ? AppTheme.red : AppTheme.green),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Disclaimer extends StatelessWidget {

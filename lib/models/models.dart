@@ -88,15 +88,98 @@ class MLSignal {
       );
 }
 
+class CandlePattern {
+  final String name;
+  final String type; // 'bullish' | 'bearish' | 'neutral'
+  final String description;
+  const CandlePattern({required this.name, required this.type, required this.description});
+  factory CandlePattern.fromJson(Map<String, dynamic> j) => CandlePattern(
+        name: j['name'] as String,
+        type: j['type'] as String,
+        description: j['description'] as String,
+      );
+}
+
 class SignalResult {
   final double compositeScore;
   final TechnicalSignal technical;
   final MLSignal ml;
-  const SignalResult({required this.compositeScore, required this.technical, required this.ml});
+  final List<CandlePattern> patterns;
+  const SignalResult({required this.compositeScore, required this.technical, required this.ml, this.patterns = const []});
   factory SignalResult.fromJson(Map<String, dynamic> j) => SignalResult(
         compositeScore: (j['composite_score'] as num).toDouble(),
         technical: TechnicalSignal.fromJson(j['technical'] as Map<String, dynamic>),
         ml: MLSignal.fromJson(j['ml'] as Map<String, dynamic>),
+        patterns: (j['patterns'] as List? ?? [])
+            .map((e) => CandlePattern.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class Levels {
+  final double current;
+  final double pp;
+  final double r1, r2, r3;
+  final double s1, s2, s3;
+  final String context;
+  final List<double> resistance;
+  final List<double> support;
+  const Levels({
+    required this.current, required this.pp,
+    required this.r1, required this.r2, required this.r3,
+    required this.s1, required this.s2, required this.s3,
+    required this.context, required this.resistance, required this.support,
+  });
+  factory Levels.fromJson(Map<String, dynamic> j) => Levels(
+        current: (j['current'] as num).toDouble(),
+        pp: (j['PP'] as num).toDouble(),
+        r1: (j['R1'] as num).toDouble(),
+        r2: (j['R2'] as num).toDouble(),
+        r3: (j['R3'] as num).toDouble(),
+        s1: (j['S1'] as num).toDouble(),
+        s2: (j['S2'] as num).toDouble(),
+        s3: (j['S3'] as num).toDouble(),
+        context: j['context'] as String? ?? '',
+        resistance: (j['resistance'] as List? ?? []).map((e) => (e as num).toDouble()).toList(),
+        support: (j['support'] as List? ?? []).map((e) => (e as num).toDouble()).toList(),
+      );
+}
+
+class IntradayStock {
+  final String symbol;
+  final String fullSymbol;
+  final double price;
+  final double vwap;
+  final double rsi;
+  final double volumeRatio;
+  final double dayChgPct;
+  final bool aboveVwap;
+  final double orHigh;
+  final double orLow;
+  final bool orbBreakout;
+  final bool orbBreakdown;
+  final String signal;
+  const IntradayStock({
+    required this.symbol, required this.fullSymbol, required this.price,
+    required this.vwap, required this.rsi, required this.volumeRatio,
+    required this.dayChgPct, required this.aboveVwap,
+    required this.orHigh, required this.orLow,
+    required this.orbBreakout, required this.orbBreakdown, required this.signal,
+  });
+  factory IntradayStock.fromJson(Map<String, dynamic> j) => IntradayStock(
+        symbol: j['symbol'] as String,
+        fullSymbol: j['full_symbol'] as String? ?? '${j['symbol']}.NS',
+        price: (j['price'] as num).toDouble(),
+        vwap: (j['vwap'] as num).toDouble(),
+        rsi: (j['rsi'] as num).toDouble(),
+        volumeRatio: (j['volume_ratio'] as num).toDouble(),
+        dayChgPct: (j['day_chg_pct'] as num).toDouble(),
+        aboveVwap: j['above_vwap'] as bool,
+        orHigh: (j['or_high'] as num).toDouble(),
+        orLow: (j['or_low'] as num).toDouble(),
+        orbBreakout: j['orb_breakout'] as bool,
+        orbBreakdown: j['orb_breakdown'] as bool,
+        signal: j['signal'] as String,
       );
 }
 
@@ -112,8 +195,10 @@ class MoverStock {
   const MoverStock({
     required this.symbol, required this.fullSymbol, required this.name,
     required this.price, required this.dayChangePct,
-    required this.compositeScore, required this.technicalLabel, this.mlProbUp,
+    required this.compositeScore, required this.technicalLabel,
+    this.mlProbUp, this.pattern,
   });
+  final String? pattern;
   factory MoverStock.fromJson(Map<String, dynamic> j) => MoverStock(
         symbol: j['symbol'] as String,
         fullSymbol: j['full_symbol'] as String? ?? '${j['symbol']}.NS',
@@ -123,6 +208,7 @@ class MoverStock {
         compositeScore: (j['composite_score'] as num).toDouble(),
         technicalLabel: j['technical_label'] as String,
         mlProbUp: j['ml_prob_up'] != null ? (j['ml_prob_up'] as num).toDouble() : null,
+        pattern: j['pattern'] as String?,
       );
 }
 

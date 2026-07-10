@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
+import 'screens/intraday_screen.dart';
 import 'screens/signals_screen.dart';
 import 'screens/fno_screen.dart';
 import 'screens/watchlist_screen.dart';
@@ -36,6 +37,7 @@ class _ShellState extends State<_Shell> {
 
   static const _screens = <Widget>[
     HomeScreen(),
+    IntradayScreen(),
     SignalsScreen(),
     FnoScreen(),
     WatchlistScreen(),
@@ -44,6 +46,7 @@ class _ShellState extends State<_Shell> {
 
   static const _items = <BottomNavigationBarItem>[
     BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+    BottomNavigationBarItem(icon: Icon(Icons.radar_outlined), activeIcon: Icon(Icons.radar), label: 'Intraday'),
     BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Signals'),
     BottomNavigationBarItem(icon: Icon(Icons.bolt_outlined), activeIcon: Icon(Icons.bolt), label: 'F&O'),
     BottomNavigationBarItem(icon: Icon(Icons.star_border_rounded), activeIcon: Icon(Icons.star_rounded), label: 'Watchlist'),
@@ -62,8 +65,8 @@ class _ShellState extends State<_Shell> {
         unselectedItemColor: AppTheme.textSecondary,
         backgroundColor: Colors.white,
         elevation: 8,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
+        selectedFontSize: 10,
+        unselectedFontSize: 10,
         items: _items,
       ),
     );
