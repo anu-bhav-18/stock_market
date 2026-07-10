@@ -16,7 +16,7 @@ class GeminiService {
     final key = await SettingsService.getGeminiKey();
     if (key.isEmpty) return false;
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       apiKey: key,
       systemInstruction: Content.system(
         'You are StockSense AI, an expert Indian stock market analyst. '
