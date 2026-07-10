@@ -124,6 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('StockSense 📈'),
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
         actions: [
           if (_selected != null)
             IconButton(

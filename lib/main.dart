@@ -8,6 +8,11 @@ import 'screens/fno_screen.dart';
 import 'screens/watchlist_screen.dart';
 import 'screens/portfolio_screen.dart';
 import 'screens/ai_chat_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/all_stocks_screen.dart';
+import 'screens/planner_screen.dart';
+import 'screens/compare_screen.dart';
+import 'screens/market_breadth_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +48,6 @@ class _ShellState extends State<_Shell> {
     PortfolioScreen(),
     SignalsScreen(),
     IntradayScreen(),
-    FnoScreen(),
     WatchlistScreen(),
   ];
 
@@ -52,15 +56,15 @@ class _ShellState extends State<_Shell> {
     BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: 'Portfolio'),
     BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined),       activeIcon: Icon(Icons.bar_chart),       label: 'Signals'),
     BottomNavigationBarItem(icon: Icon(Icons.radar_outlined),           activeIcon: Icon(Icons.radar),           label: 'Intraday'),
-    BottomNavigationBarItem(icon: Icon(Icons.bolt_outlined),            activeIcon: Icon(Icons.bolt),            label: 'F&O'),
     BottomNavigationBarItem(icon: Icon(Icons.star_border_rounded),      activeIcon: Icon(Icons.star_rounded),    label: 'Watchlist'),
   ];
 
-  void _openChat() => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiChatScreen()));
+  void _push(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: _AppDrawer(onNavigate: _push),
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -76,7 +80,7 @@ class _ShellState extends State<_Shell> {
         items: _items,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _openChat,
+        onPressed: () => _push(const AiChatScreen()),
         backgroundColor: AppTheme.blue,
         mini: true,
         tooltip: 'AI Chat',
@@ -84,4 +88,87 @@ class _ShellState extends State<_Shell> {
       ),
     );
   }
+}
+
+class _AppDrawer extends StatelessWidget {
+  final void Function(Widget) onNavigate;
+  const _AppDrawer({required this.onNavigate});
+
+  void _go(BuildContext ctx, Widget screen) {
+    Navigator.pop(ctx);
+    onNavigate(screen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: Column(children: [
+        DrawerHeader(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.green, Color(0xFF00897B)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(Icons.show_chart, color: Colors.white, size: 36),
+              SizedBox(height: 8),
+              Text('StockSense', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('NSE/BSE Intelligence', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(padding: EdgeInsets.zero, children: [
+            _Section('Trading'),
+            _DrawerItem(icon: Icons.bolt_outlined,         label: 'F&O Options',      onTap: () => _go(context, const FnoScreen())),
+            _DrawerItem(icon: Icons.book_outlined,         label: 'Trade Planner',    onTap: () => _go(context, const PlannerScreen())),
+            _DrawerItem(icon: Icons.compare_arrows_rounded,label: 'Compare Stocks',   onTap: () => _go(context, const CompareScreen())),
+            _Section('Market'),
+            _DrawerItem(icon: Icons.list_alt_outlined,     label: 'All Stocks',       onTap: () => _go(context, const AllStocksScreen())),
+            _DrawerItem(icon: Icons.bar_chart_rounded,     label: 'Market Breadth',   onTap: () => _go(context, const MarketBreadthScreen())),
+            _Section('Tools'),
+            _DrawerItem(icon: Icons.psychology_rounded,    label: 'AI Chat',          onTap: () => _go(context, const AiChatScreen())),
+            _DrawerItem(icon: Icons.settings_outlined,     label: 'Settings',         onTap: () => _go(context, const SettingsScreen())),
+          ]),
+        ),
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Data: Yahoo Finance / yfinance\nFor educational use only',
+              style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+              textAlign: TextAlign.center),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  final String title;
+  const _Section(this.title);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: Text(title.toUpperCase(),
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textSecondary, letterSpacing: 1.2)),
+  );
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _DrawerItem({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(icon, size: 22, color: AppTheme.textPrimary),
+    title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+    onTap: onTap,
+    dense: true,
+    horizontalTitleGap: 8,
+  );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import 'stock_detail_screen.dart';
 
 class IntradayScreen extends StatefulWidget {
   const IntradayScreen({super.key});
@@ -97,13 +98,25 @@ class _IntradayScreenState extends State<IntradayScreen> {
             const Expanded(child: _EmptyState()),
           if (_results != null) ...[
             _SummaryBar(results: _results!),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: _results!.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => _StockCard(stock: _results![i]),
-              ),
+            Flexible(
+              fit: FlexFit.tight,
+              child: _results!.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No signals yet — market may be closed or data unavailable.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: _results!.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _StockCard(stock: _results![i]),
+                    ),
             ),
           ],
         ],
@@ -274,7 +287,12 @@ class _StockCard extends StatelessWidget {
     final chgColor = isUp ? AppTheme.green : AppTheme.red;
 
     return Card(
-      child: Padding(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => StockDetailScreen(symbol: stock.fullSymbol, name: stock.symbol),
+        )),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
@@ -351,6 +369,7 @@ class _StockCard extends StatelessWidget {
             _ORBar(price: stock.price, orHigh: stock.orHigh, orLow: stock.orLow, vwap: stock.vwap),
           ],
         ),
+      ),
       ),
     );
   }

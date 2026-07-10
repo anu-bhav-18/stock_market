@@ -358,7 +358,7 @@ def fno_symbols():
         for k, v in ALL_STOCKS.items()
     ]
     indices = [{"symbol": s, "name": s, "type": "index"} for s in FNO_INDICES]
-    return {"indices": indices, "stocks": fno_stocks[:50]}
+    return JSONResponse(content=_jsonify({"indices": indices, "stocks": fno_stocks[:50]}))
 
 
 @app.get("/fno/chain/{symbol}")
@@ -375,11 +375,11 @@ def option_chain(symbol: str, expiry: str = Query(default=None)):
             result["strikes"] = [s for s in strikes if s["strike"] in atm_strikes]
             result["strikes"].sort(key=lambda s: s["strike"])
 
-        return result
+        return JSONResponse(content=_jsonify(result))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"NSE data unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Options data unavailable: {str(e)}")
 
 
 # ── News ──────────────────────────────────────────────────────────────────────
