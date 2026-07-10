@@ -126,15 +126,16 @@ def _composite(df: pd.DataFrame, horizon: int) -> dict:
     tech = technical_signal(data)
     ml = _predict_ml(df, horizon)
     tech_bull = (tech["score"] + 100) / 2.0
-    if ml.get("available") and ml.get("probability_up") is not None:
-        composite = float(round(0.65 * tech_bull + 0.35 * float(ml["probability_up"]) * 100, 1))
+    prob_up = ml.get("probability_up")
+    # Guard against NaN: pd.notna handles both None and float('nan')
+    if ml.get("available") and pd.notna(prob_up):
+        composite = float(round(0.65 * tech_bull + 0.35 * float(prob_up) * 100, 1))
+        ml["probability_up"] = float(prob_up)
     else:
         composite = float(round(tech_bull, 1))
-    # Ensure ml values are Python native types
-    if ml.get("probability_up") is not None:
-        ml["probability_up"] = float(ml["probability_up"])
-    if ml.get("backtest_accuracy") is not None:
-        ml["backtest_accuracy"] = float(ml["backtest_accuracy"])
+        ml["probability_up"] = None
+    acc = ml.get("backtest_accuracy")
+    ml["backtest_accuracy"] = float(acc) if pd.notna(acc) else None
     return {"composite_score": composite, "technical": tech, "ml": ml}
 
 
@@ -161,7 +162,7 @@ def get_quote(symbol: str):
     q = _quote(symbol)
     if not q:
         raise HTTPException(status_code=404, detail="Quote not available")
-    return q
+    return JSONResponse(content=_jsonify(q))
 
 
 @app.get("/history/{symbol}")
@@ -297,7 +298,7 @@ def get_levels(symbol: str):
         raise HTTPException(status_code=404, detail="No data available")
     pivots = pivot_points(df)
     sr = support_resistance(df)
-    return {**pivots, **sr}
+    return JSONResponse(content=_jsonify({**pivots, **sr}))
 
 
 @app.get("/patterns/{symbol}")
