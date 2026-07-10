@@ -41,39 +41,52 @@ app.add_middleware(
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
-def _history(symbol: str, period: str = "1y") -> pd.DataFrame:
+def _history(symbol: str, period: str = "6mo") -> pd.DataFrame:
+    """Use yf.download (faster than Ticker.history) with auto_adjust for clean prices."""
     try:
-        df = yf.Ticker(symbol).history(period=period, interval="1d")
-        return pd.DataFrame() if (df is None or df.empty) else df.reset_index()
+        df = yf.download(symbol, period=period, interval="1d",
+                         auto_adjust=True, progress=False, threads=False)
+        if df is None or df.empty:
+            return pd.DataFrame()
+        df = df.reset_index()
+        # yf.download may return MultiIndex columns when single ticker — flatten
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] if c[1] == symbol or c[1] == "" else c[0] for c in df.columns]
+        return df
     except Exception:
         return pd.DataFrame()
 
 
 def _history_range(symbol: str, start: str, end: str) -> pd.DataFrame:
     try:
-        df = yf.Ticker(symbol).history(start=start, end=end, interval="1d")
-        return pd.DataFrame() if (df is None or df.empty) else df.reset_index()
+        df = yf.download(symbol, start=start, end=end, interval="1d",
+                         auto_adjust=True, progress=False, threads=False)
+        if df is None or df.empty:
+            return pd.DataFrame()
+        df = df.reset_index()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] for c in df.columns]
+        return df
     except Exception:
         return pd.DataFrame()
 
 
 def _quote(symbol: str) -> dict:
+    """Get quote from last 5d download — avoids a second HTTP round-trip."""
     try:
-        ticker = yf.Ticker(symbol)
-        fast = ticker.fast_info
-        price = fast.get("lastPrice") or fast.get("last_price")
-        prev = fast.get("previousClose") or fast.get("previous_close")
-        if price is None or prev is None:
-            hist = ticker.history(period="5d")
-            if hist.empty:
-                return {}
-            price = float(hist["Close"].iloc[-1])
-            prev = float(hist["Close"].iloc[-2]) if len(hist) > 1 else price
+        df = yf.download(symbol, period="5d", interval="1d",
+                         auto_adjust=True, progress=False, threads=False)
+        if df is None or df.empty:
+            return {}
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] for c in df.columns]
+        price = float(df["Close"].iloc[-1])
+        prev  = float(df["Close"].iloc[-2]) if len(df) > 1 else price
         change = price - prev
         return {
-            "price": float(price),
-            "prev_close": float(prev),
-            "change": float(change),
+            "price":      price,
+            "prev_close": prev,
+            "change":     float(change),
             "change_pct": float(change / prev * 100) if prev else 0.0,
         }
     except Exception:
@@ -147,7 +160,7 @@ def get_history(symbol: str, period: str = Query(default="6mo")):
 
 @app.get("/signal/{symbol}")
 def get_signal(symbol: str, horizon: int = Query(default=5)):
-    df = _history(symbol, period="1y")
+    df = _history(symbol, period="6mo")
     if df.empty:
         raise HTTPException(status_code=404, detail="No data available")
     try:
@@ -168,8 +181,8 @@ def screener(
 
     def _process(symbol):
         try:
-            df = _history(symbol, period="1y")
-            if df.empty or len(df) < 60:
+            df = _history(symbol, period="6mo")
+            if df.empty or len(df) < 50:
                 return None
             result = _composite(df, horizon)
             last = float(df["Close"].iloc[-1])
@@ -206,7 +219,7 @@ def screener(
 def get_stock_detail(symbol: str, horizon: int = Query(default=5)):
     """All-in-one stock detail: quote + signal + levels + indicators."""
     try:
-        df = _history(symbol, period="1y")
+        df = _history(symbol, period="6mo")
         if df.empty:
             raise HTTPException(status_code=404, detail="No data for symbol")
         q = _quote(symbol)
