@@ -65,8 +65,9 @@ class _ShellState extends State<_Shell> {
         unselectedItemColor: AppTheme.textSecondary,
         backgroundColor: Colors.white,
         elevation: 8,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
+        selectedFontSize: 9,
+        unselectedFontSize: 9,
+        iconSize: 22,
         items: _items,
       ),
     );

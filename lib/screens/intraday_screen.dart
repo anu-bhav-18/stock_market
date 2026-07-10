@@ -288,6 +288,7 @@ class _StockCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(stock.signal,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _signalColor)),
                 ),
                 const SizedBox(width: 10),
@@ -371,7 +372,8 @@ class _MiniStat extends StatelessWidget {
         Row(
           children: [
             if (icon != null) Icon(icon, size: 10, color: valueColor),
-            Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: valueColor)),
+            Flexible(child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: valueColor))),
           ],
         ),
       ],

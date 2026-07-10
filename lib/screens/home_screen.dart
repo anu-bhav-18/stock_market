@@ -5,6 +5,7 @@ import '../services/watchlist_service.dart';
 import '../theme.dart';
 import '../widgets/stock_chart.dart';
 import '../widgets/signal_pill.dart';
+import 'stock_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -345,6 +346,18 @@ class _StockDetail extends StatelessWidget {
                 const SizedBox(height: 14),
                 _LevelsCard(levels: levels!),
               ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => StockDetailScreen(symbol: stock.symbol, name: stock.name),
+                  )),
+                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                  label: const Text('Full Technical Analysis'),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.blue),
+                ),
+              ),
             ],
           ],
         ),
@@ -448,6 +461,7 @@ class _PatternsRow extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(patterns.first.description,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
           ),
       ],
@@ -475,7 +489,9 @@ class _LevelsCard extends StatelessWidget {
         _LevelRow(label: 'S2', value: levels.s2, price: price, isResistance: false),
         if (levels.context.isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text(levels.context, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+          Text(levels.context,
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
         ],
         // S/R from price history
         if (levels.resistance.isNotEmpty || levels.support.isNotEmpty) ...[

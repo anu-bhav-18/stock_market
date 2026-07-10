@@ -77,13 +77,15 @@ class MLSignal {
   final double? probabilityUp;
   final int? horizonDays;
   final double? backtestAccuracy;
+  final int? samplesUsed;
   final String? reason;
-  const MLSignal({required this.available, this.probabilityUp, this.horizonDays, this.backtestAccuracy, this.reason});
+  const MLSignal({required this.available, this.probabilityUp, this.horizonDays, this.backtestAccuracy, this.samplesUsed, this.reason});
   factory MLSignal.fromJson(Map<String, dynamic> j) => MLSignal(
         available: j['available'] as bool,
         probabilityUp: j['probability_up'] != null ? (j['probability_up'] as num).toDouble() : null,
         horizonDays: j['horizon_days'] != null ? (j['horizon_days'] as num).toInt() : null,
         backtestAccuracy: j['backtest_accuracy'] != null ? (j['backtest_accuracy'] as num).toDouble() : null,
+        samplesUsed: j['samples_used'] != null ? (j['samples_used'] as num).toInt() : null,
         reason: j['reason'] as String?,
       );
 }
@@ -231,6 +233,82 @@ class ReturnResult {
         annualizedVolatility: (j['annualized_volatility'] as num).toDouble(),
         days: (j['days'] as num).toInt(),
       );
+}
+
+class StockIndicators {
+  final double rsi;
+  final double macd;
+  final double macdHist;
+  final double sma20;
+  final double sma50;
+  final double bbUpper;
+  final double bbLower;
+  final int volume;
+  final double volumeSma20;
+  final double volatility20;
+  const StockIndicators({
+    required this.rsi, required this.macd, required this.macdHist,
+    required this.sma20, required this.sma50, required this.bbUpper,
+    required this.bbLower, required this.volume, required this.volumeSma20,
+    required this.volatility20,
+  });
+  factory StockIndicators.fromJson(Map<String, dynamic> j) => StockIndicators(
+    rsi: (j['rsi'] as num).toDouble(),
+    macd: (j['macd'] as num).toDouble(),
+    macdHist: (j['macd_hist'] as num).toDouble(),
+    sma20: (j['sma20'] as num).toDouble(),
+    sma50: (j['sma50'] as num).toDouble(),
+    bbUpper: (j['bb_upper'] as num).toDouble(),
+    bbLower: (j['bb_lower'] as num).toDouble(),
+    volume: (j['volume'] as num).toInt(),
+    volumeSma20: (j['volume_sma20'] as num).toDouble(),
+    volatility20: (j['volatility_20'] as num).toDouble(),
+  );
+}
+
+class StockDetailData {
+  final String symbol;
+  final Quote quote;
+  final double compositeScore;
+  final TechnicalSignal technical;
+  final MLSignal ml;
+  final List<CandlePattern> patterns;
+  final double current;
+  final double pp, r1, r2, r3, s1, s2, s3;
+  final String context;
+  final List<double> resistance;
+  final List<double> support;
+  final StockIndicators indicators;
+  const StockDetailData({
+    required this.symbol, required this.quote,
+    required this.compositeScore, required this.technical, required this.ml,
+    required this.patterns, required this.current,
+    required this.pp, required this.r1, required this.r2, required this.r3,
+    required this.s1, required this.s2, required this.s3,
+    required this.context, required this.resistance, required this.support,
+    required this.indicators,
+  });
+  factory StockDetailData.fromJson(Map<String, dynamic> j) => StockDetailData(
+    symbol: j['symbol'] as String,
+    quote: Quote.fromJson(j['quote'] as Map<String, dynamic>),
+    compositeScore: (j['composite_score'] as num).toDouble(),
+    technical: TechnicalSignal.fromJson(j['technical'] as Map<String, dynamic>),
+    ml: MLSignal.fromJson(j['ml'] as Map<String, dynamic>),
+    patterns: (j['patterns'] as List? ?? [])
+        .map((e) => CandlePattern.fromJson(e as Map<String, dynamic>)).toList(),
+    current: (j['current'] as num? ?? j['quote']['price'] as num).toDouble(),
+    pp: (j['PP'] as num? ?? 0).toDouble(),
+    r1: (j['R1'] as num? ?? 0).toDouble(),
+    r2: (j['R2'] as num? ?? 0).toDouble(),
+    r3: (j['R3'] as num? ?? 0).toDouble(),
+    s1: (j['S1'] as num? ?? 0).toDouble(),
+    s2: (j['S2'] as num? ?? 0).toDouble(),
+    s3: (j['S3'] as num? ?? 0).toDouble(),
+    context: j['context'] as String? ?? '',
+    resistance: (j['resistance'] as List? ?? []).map((e) => (e as num).toDouble()).toList(),
+    support: (j['support'] as List? ?? []).map((e) => (e as num).toDouble()).toList(),
+    indicators: StockIndicators.fromJson(j['indicators'] as Map<String, dynamic>),
+  );
 }
 
 // ── F&O models ────────────────────────────────────────────────────────────────

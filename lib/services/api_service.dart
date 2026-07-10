@@ -55,6 +55,11 @@ class ApiService {
         (d) => ReturnResult.fromJson(d as Map<String, dynamic>),
       );
 
+  static Future<StockDetailData> fetchStockDetail(String symbol, {int horizon = 5}) => _get(
+        '/stock/$symbol?horizon=$horizon',
+        (d) => StockDetailData.fromJson(d as Map<String, dynamic>),
+      );
+
   // ── Levels & Patterns ──────────────────────────────────────────────────────
 
   static Future<Levels> fetchLevels(String symbol) => _get(

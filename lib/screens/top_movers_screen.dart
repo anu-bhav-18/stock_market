@@ -158,7 +158,7 @@ class _MoverCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('â‚¹${stock.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                Text('₹${stock.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 Text(
                   '${isUp ? '+' : ''}${stock.dayChangePct.toStringAsFixed(2)}%',
                   style: TextStyle(fontSize: 12, color: changeColor, fontWeight: FontWeight.w600),

@@ -7,6 +7,7 @@ Vercel:     deployed automatically via vercel.json
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
 import pandas as pd
 
@@ -89,10 +90,16 @@ def _composite(df: pd.DataFrame, horizon: int) -> dict:
     data = add_indicators(df)
     tech = technical_signal(data)
     ml = _predict_ml(df, horizon)
-    tech_bull = (tech["score"] + 100) / 2
-    composite = round(
-        0.65 * tech_bull + 0.35 * ml["probability_up"] * 100, 1
-    ) if ml.get("available") else round(tech_bull, 1)
+    tech_bull = (tech["score"] + 100) / 2.0
+    if ml.get("available") and ml.get("probability_up") is not None:
+        composite = float(round(0.65 * tech_bull + 0.35 * float(ml["probability_up"]) * 100, 1))
+    else:
+        composite = float(round(tech_bull, 1))
+    # Ensure ml values are Python native types
+    if ml.get("probability_up") is not None:
+        ml["probability_up"] = float(ml["probability_up"])
+    if ml.get("backtest_accuracy") is not None:
+        ml["backtest_accuracy"] = float(ml["backtest_accuracy"])
     return {"composite_score": composite, "technical": tech, "ml": ml}
 
 
@@ -140,10 +147,12 @@ def get_signal(symbol: str, horizon: int = Query(default=5)):
     df = _history(symbol, period="1y")
     if df.empty:
         raise HTTPException(status_code=404, detail="No data available")
-    result = _composite(df, horizon)
-    # Attach candlestick patterns
-    result["patterns"] = detect_patterns(df)
-    return result
+    try:
+        result = _composite(df, horizon)
+        result["patterns"] = detect_patterns(df)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Signal error: {str(e)}")
 
 
 @app.get("/screener")
@@ -152,31 +161,82 @@ def screener(
     horizon: int = Query(default=5),
 ):
     symbols = get_symbols_for_index(index)
+
+    def _process(symbol):
+        try:
+            df = _history(symbol, period="1y")
+            if df.empty or len(df) < 60:
+                return None
+            result = _composite(df, horizon)
+            last = float(df["Close"].iloc[-1])
+            prev = float(df["Close"].iloc[-2]) if len(df) > 1 else last
+            day_chg = float((last - prev) / prev * 100) if prev else 0.0
+            patterns = detect_patterns(df)
+            return {
+                "symbol": symbol.replace(".NS", ""),
+                "full_symbol": symbol,
+                "name": ALL_STOCKS.get(symbol, symbol),
+                "price": last,
+                "day_change_pct": day_chg,
+                "composite_score": result["composite_score"],
+                "technical_label": result["technical"]["label"],
+                "ml_prob_up": result["ml"].get("probability_up"),
+                "pattern": patterns[0]["name"] if patterns else None,
+            }
+        except Exception:
+            return None
+
     results = []
-    for symbol in symbols:
-        df = _history(symbol, period="1y")
-        if df.empty or len(df) < 60:
-            continue
-        result = _composite(df, horizon)
-        last = float(df["Close"].iloc[-1])
-        prev = float(df["Close"].iloc[-2]) if len(df) > 1 else last
-        day_chg = (last - prev) / prev * 100 if prev else 0.0
-        # Top pattern for display
-        patterns = detect_patterns(df)
-        top_pattern = patterns[0]["name"] if patterns else None
-        results.append({
-            "symbol": symbol.replace(".NS", ""),
-            "full_symbol": symbol,
-            "name": ALL_STOCKS.get(symbol, symbol),
-            "price": last,
-            "day_change_pct": day_chg,
-            "composite_score": result["composite_score"],
-            "technical_label": result["technical"]["label"],
-            "ml_prob_up": result["ml"].get("probability_up"),
-            "pattern": top_pattern,
-        })
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = {ex.submit(_process, s): s for s in symbols}
+        for f in as_completed(futures):
+            r = f.result()
+            if r:
+                results.append(r)
+
     results.sort(key=lambda x: x["composite_score"], reverse=True)
     return results
+
+
+@app.get("/stock/{symbol}")
+def get_stock_detail(symbol: str, horizon: int = Query(default=5)):
+    """All-in-one stock detail: quote + signal + levels + indicators."""
+    try:
+        df = _history(symbol, period="1y")
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No data for symbol")
+        q = _quote(symbol)
+        result = _composite(df, horizon)
+        result["patterns"] = detect_patterns(df)
+        pivots = pivot_points(df)
+        sr = support_resistance(df)
+        # Key indicators from last row
+        data = add_indicators(df)
+        last = data.iloc[-1]
+        indicators = {
+            "rsi": float(last.get("RSI_14", 50) or 50),
+            "macd": float(last.get("MACD", 0) or 0),
+            "macd_hist": float(last.get("MACD_hist", 0) or 0),
+            "sma20": float(last.get("SMA_20", 0) or 0),
+            "sma50": float(last.get("SMA_50", 0) or 0),
+            "bb_upper": float(last.get("BB_upper", 0) or 0),
+            "bb_lower": float(last.get("BB_lower", 0) or 0),
+            "volume": int(last.get("Volume", 0) or 0),
+            "volume_sma20": float(last.get("Volume_SMA_20", 0) or 0),
+            "volatility_20": float(last.get("Volatility_20", 0) or 0),
+        }
+        return {
+            "symbol": symbol,
+            "quote": q,
+            **result,
+            **pivots,
+            **sr,
+            "indicators": indicators,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stock detail error: {str(e)}")
 
 
 @app.get("/return/{symbol}")

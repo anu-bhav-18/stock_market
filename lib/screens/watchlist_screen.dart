@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/watchlist_service.dart';
 import '../theme.dart';
 import '../widgets/signal_pill.dart';
+import 'stock_detail_screen.dart';
 
 class WatchlistScreen extends StatefulWidget {
   const WatchlistScreen({super.key});
@@ -125,7 +126,15 @@ class _WatchCardState extends State<_WatchCard> {
       ),
       onDismissed: (_) => widget.onRemove(),
       child: Card(
-        child: Padding(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => StockDetailScreen(
+              symbol: widget.item.symbol,
+              name: widget.item.symbol.replaceAll('.NS', ''),
+            ),
+          )),
+          child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
@@ -161,6 +170,7 @@ class _WatchCardState extends State<_WatchCard> {
                 ],
               ),
             ],
+          ),
           ),
         ),
       ),

@@ -94,7 +94,7 @@ def technical_signal(df: pd.DataFrame) -> dict:
         score += 12
         reasons.append("Price up on a volume surge")
 
-    score = max(-100, min(100, score))
+    score = int(max(-100, min(100, score)))
 
     if score >= 35:
         label = "Strong Buy"

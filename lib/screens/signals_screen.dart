@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/signal_pill.dart';
+import 'stock_detail_screen.dart';
 
 class SignalsScreen extends StatefulWidget {
   const SignalsScreen({super.key});
@@ -165,7 +166,12 @@ class _StockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUp = stock.dayChangePct >= 0;
     return Card(
-      child: Padding(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => StockDetailScreen(symbol: stock.fullSymbol, name: stock.name),
+        )),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
@@ -198,7 +204,7 @@ class _StockCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('â‚¹${stock.price.toStringAsFixed(1)}',
+                Text('₹${stock.price.toStringAsFixed(1)}',
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 Text(
                   '${isUp ? '+' : ''}${stock.dayChangePct.toStringAsFixed(2)}%',
@@ -218,6 +224,7 @@ class _StockCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -192,7 +192,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ],
                 const SizedBox(height: 24),
                 const Text(
-                  'âš ï¸ Projection is a rough heuristic from model conviction, not a price target. Educational use only.',
+                  '⚠️ Projection is a rough heuristic from model conviction, not a price target. Educational use only.',
                   style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),
