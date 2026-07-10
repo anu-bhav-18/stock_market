@@ -87,24 +87,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final watched = await WatchlistService.isWatched(stock.symbol);
     if (mounted) setState(() => _watched = watched);
 
-    try {
-      final results = await Future.wait([
-        ApiService.fetchQuote(stock.symbol),
-        ApiService.fetchHistory(stock.symbol, period: '6mo'),
-        ApiService.fetchSignal(stock.symbol),
-        ApiService.fetchLevels(stock.symbol),
-      ]);
-      if (mounted) {
-        setState(() {
-          _quote = results[0] as Quote;
-          _history = results[1] as List<HistoryPoint>;
-          _signal = results[2] as SignalResult;
-          _levels = results[3] as Levels;
-          _loadingData = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _loadingData = false);
+    // Fetch each independently so a signal/ML failure doesn't block price+chart
+    Quote? quote;
+    List<HistoryPoint> history = [];
+    SignalResult? signal;
+    Levels? levels;
+
+    await Future.wait([
+      ApiService.fetchQuote(stock.symbol).then((v) { quote = v; }).catchError((_) {}),
+      ApiService.fetchHistory(stock.symbol, period: '6mo').then((v) { history = v; }).catchError((_) {}),
+      ApiService.fetchSignal(stock.symbol).then((v) { signal = v; }).catchError((_) {}),
+      ApiService.fetchLevels(stock.symbol).then((v) { levels = v; }).catchError((_) {}),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _quote = quote;
+        _history = history;
+        _signal = signal;
+        _levels = levels;
+        _loadingData = false;
+      });
     }
   }
 

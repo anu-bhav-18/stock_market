@@ -15,8 +15,10 @@ class StockDetailScreen extends StatefulWidget {
 }
 
 class _StockDetailScreenState extends State<StockDetailScreen> {
-  StockDetailData? _data;
+  Quote? _quote;
   List<HistoryPoint> _history = [];
+  SignalResult? _signal;
+  Levels? _levels;
   bool _loading = true;
   String? _error;
   bool _watched = false;
@@ -29,22 +31,35 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
-    try {
-      final results = await Future.wait([
-        ApiService.fetchStockDetail(widget.symbol),
-        ApiService.fetchHistory(widget.symbol, period: '6mo'),
-        WatchlistService.isWatched(widget.symbol),
-      ]);
-      if (mounted) {
-        setState(() {
-          _data = results[0] as StockDetailData;
-          _history = results[1] as List<HistoryPoint>;
-          _watched = results[2] as bool;
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+
+    Quote? quote;
+    List<HistoryPoint> history = [];
+    SignalResult? signal;
+    Levels? levels;
+    bool watched = false;
+
+    await Future.wait([
+      ApiService.fetchQuote(widget.symbol).then((v) { quote = v; }).catchError((_) {}),
+      ApiService.fetchHistory(widget.symbol, period: '6mo').then((v) { history = v; }).catchError((_) {}),
+      ApiService.fetchSignal(widget.symbol).then((v) { signal = v; }).catchError((_) {}),
+      ApiService.fetchLevels(widget.symbol).then((v) { levels = v; }).catchError((_) {}),
+      WatchlistService.isWatched(widget.symbol).then((v) { watched = v; }).catchError((_) {}),
+    ]);
+
+    if (quote == null && history.isEmpty) {
+      if (mounted) setState(() { _error = 'Could not load data for ${widget.symbol}'; _loading = false; });
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _quote = quote;
+        _history = history;
+        _signal = signal;
+        _levels = levels;
+        _watched = watched;
+        _loading = false;
+      });
     }
   }
 
@@ -87,9 +102,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             ))
           : _error != null
               ? _ErrorView(error: _error!, onRetry: _load)
-              : _data == null
-                  ? const SizedBox.shrink()
-                  : _DetailBody(data: _data!, history: _history),
+              : _DetailBody(
+                  symbol: widget.symbol,
+                  quote: _quote,
+                  history: _history,
+                  signal: _signal,
+                  levels: _levels,
+                ),
     );
   }
 }
@@ -127,36 +146,52 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _DetailBody extends StatelessWidget {
-  final StockDetailData data;
+  final String symbol;
+  final Quote? quote;
   final List<HistoryPoint> history;
-  const _DetailBody({required this.data, required this.history});
+  final SignalResult? signal;
+  final Levels? levels;
+  const _DetailBody({
+    required this.symbol, required this.quote, required this.history,
+    required this.signal, required this.levels,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _PriceCard(data: data),
-        const SizedBox(height: 12),
-        _RecommendationCard(data: data),
-        const SizedBox(height: 12),
+        if (quote != null) ...[
+          _PriceCard(quote: quote!),
+          const SizedBox(height: 12),
+        ],
+        if (signal != null) ...[
+          _RecommendationCard(signal: signal!),
+          const SizedBox(height: 12),
+        ],
         if (history.isNotEmpty) ...[
           _ChartCard(history: history),
           const SizedBox(height: 12),
         ],
-        _IndicatorsCard(data: data),
-        const SizedBox(height: 12),
-        _SignalsCard(data: data),
-        const SizedBox(height: 12),
-        if (data.ml.available) ...[
-          _MLCard(ml: data.ml),
+        if (signal != null && history.isNotEmpty) ...[
+          _IndicatorsCard(history: history, quote: quote),
           const SizedBox(height: 12),
         ],
-        if (data.patterns.isNotEmpty) ...[
-          _PatternsCard(patterns: data.patterns),
+        if (signal != null) ...[
+          _SignalsCard(signal: signal!),
           const SizedBox(height: 12),
+          if (signal!.ml.available) ...[
+            _MLCard(ml: signal!.ml),
+            const SizedBox(height: 12),
+          ],
+          if (signal!.patterns.isNotEmpty) ...[
+            _PatternsCard(patterns: signal!.patterns),
+            const SizedBox(height: 12),
+          ],
         ],
-        _LevelsCard(data: data),
+        if (levels != null) ...[
+          _LevelsCard(levels: levels!, price: quote?.price ?? 0),
+        ],
         const SizedBox(height: 24),
         const Text(
           '⚠ For educational use only. Not financial advice.',
@@ -172,17 +207,15 @@ class _DetailBody extends StatelessWidget {
 // ── Price header ──────────────────────────────────────────────────────────────
 
 class _PriceCard extends StatelessWidget {
-  final StockDetailData data;
-  const _PriceCard({required this.data});
+  final Quote quote;
+  const _PriceCard({required this.quote});
 
   @override
   Widget build(BuildContext context) {
-    final q = data.quote;
+    final q = quote;
     final isUp = q.changePct >= 0;
     final color = isUp ? AppTheme.green : AppTheme.red;
-    final vol = data.indicators.volume;
-    final volSma = data.indicators.volumeSma20;
-    final volLabel = volSma > 0 ? '${(vol / volSma).toStringAsFixed(1)}× avg' : 'N/A';
+    final volLabel = 'N/A';
 
     return Card(
       child: Padding(
@@ -230,11 +263,11 @@ class _PriceCard extends StatelessWidget {
 // ── Recommendation card ───────────────────────────────────────────────────────
 
 class _RecommendationCard extends StatelessWidget {
-  final StockDetailData data;
-  const _RecommendationCard({required this.data});
+  final SignalResult signal;
+  const _RecommendationCard({required this.signal});
 
   Color get _color {
-    final label = data.technical.label;
+    final label = signal.technical.label;
     if (label.contains('Strong Buy')) return AppTheme.green;
     if (label.contains('Buy')) return const Color(0xFF4CAF50);
     if (label.contains('Strong Sell')) return AppTheme.red;
@@ -243,7 +276,7 @@ class _RecommendationCard extends StatelessWidget {
   }
 
   IconData get _icon {
-    final label = data.technical.label;
+    final label = signal.technical.label;
     if (label.contains('Buy')) return Icons.trending_up_rounded;
     if (label.contains('Sell')) return Icons.trending_down_rounded;
     return Icons.remove_rounded;
@@ -251,7 +284,7 @@ class _RecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score = data.compositeScore;
+    final score = signal.compositeScore;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -274,7 +307,7 @@ class _RecommendationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Recommendation', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-                      Text(data.technical.label,
+                      Text(signal.technical.label,
                           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _color)),
                     ],
                   ),
@@ -372,16 +405,22 @@ class _LegendDot extends StatelessWidget {
 // ── Technical indicators ──────────────────────────────────────────────────────
 
 class _IndicatorsCard extends StatelessWidget {
-  final StockDetailData data;
-  const _IndicatorsCard({required this.data});
+  final List<HistoryPoint> history;
+  final Quote? quote;
+  const _IndicatorsCard({required this.history, required this.quote});
 
   @override
   Widget build(BuildContext context) {
-    final ind = data.indicators;
-    final price = data.quote.price;
-    final rsi = ind.rsi;
-    final bbRange = ind.bbUpper - ind.bbLower;
-    final bbPct = bbRange > 0 ? ((price - ind.bbLower) / bbRange * 100).clamp(0.0, 100.0) : 50.0;
+    final last = history.isNotEmpty ? history.last : null;
+    final price = quote?.price ?? last?.close ?? 0.0;
+    final rsi = last?.rsi14 ?? 50.0;
+    final macd = last?.macd ?? 0.0;
+    final sma20 = last?.sma20 ?? 0.0;
+    final sma50 = last?.sma50 ?? 0.0;
+    final bbUpper = last?.bbUpper ?? 0.0;
+    final bbLower = last?.bbLower ?? 0.0;
+    final bbRange = bbUpper - bbLower;
+    final bbPct = bbRange > 0 ? ((price - bbLower) / bbRange * 100).clamp(0.0, 100.0) : 50.0;
 
     return Card(
       child: Padding(
@@ -403,9 +442,9 @@ class _IndicatorsCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: _IndicatorTile(
                 label: 'MACD',
-                value: ind.macd.toStringAsFixed(2),
-                subtext: ind.macdHist > 0 ? 'Bullish' : 'Bearish',
-                color: ind.macdHist > 0 ? AppTheme.green : AppTheme.red,
+                value: macd.toStringAsFixed(2),
+                subtext: macd > 0 ? 'Bullish' : 'Bearish',
+                color: macd > 0 ? AppTheme.green : AppTheme.red,
                 barValue: null,
               )),
             ]),
@@ -413,15 +452,15 @@ class _IndicatorsCard extends StatelessWidget {
             Row(children: [
               Expanded(child: _IndicatorTile(
                 label: 'SMA 20 / 50',
-                value: '${ind.sma20.toStringAsFixed(0)} / ${ind.sma50.toStringAsFixed(0)}',
-                subtext: price > ind.sma20 && price > ind.sma50
+                value: '${sma20.toStringAsFixed(0)} / ${sma50.toStringAsFixed(0)}',
+                subtext: price > sma20 && price > sma50
                     ? 'Above both (Bullish)'
-                    : price < ind.sma20 && price < ind.sma50
+                    : price < sma20 && price < sma50
                         ? 'Below both (Bearish)'
                         : 'Mixed',
-                color: price > ind.sma20 && price > ind.sma50
+                color: price > sma20 && price > sma50
                     ? AppTheme.green
-                    : price < ind.sma20 && price < ind.sma50
+                    : price < sma20 && price < sma50
                         ? AppTheme.red
                         : Colors.orange,
                 barValue: null,
@@ -436,8 +475,6 @@ class _IndicatorsCard extends StatelessWidget {
                 barColor: bbPct > 80 ? AppTheme.red : bbPct < 20 ? AppTheme.green : Colors.orange,
               )),
             ]),
-            const SizedBox(height: 10),
-            _VolatilityRow(volatility: ind.volatility20),
           ],
         ),
       ),
@@ -491,38 +528,15 @@ class _IndicatorTile extends StatelessWidget {
   }
 }
 
-class _VolatilityRow extends StatelessWidget {
-  final double volatility;
-  const _VolatilityRow({required this.volatility});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = volatility < 1.0 ? 'Low' : volatility < 2.0 ? 'Moderate' : 'High';
-    final color = volatility < 1.0 ? AppTheme.green : volatility < 2.0 ? Colors.orange : AppTheme.red;
-    return Row(children: [
-      const Text('Daily Volatility:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-      const SizedBox(width: 6),
-      Text('${volatility.toStringAsFixed(2)}%',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
-      ),
-    ]);
-  }
-}
-
 // ── Signals ───────────────────────────────────────────────────────────────────
 
 class _SignalsCard extends StatelessWidget {
-  final StockDetailData data;
-  const _SignalsCard({required this.data});
+  final SignalResult signal;
+  const _SignalsCard({required this.signal});
 
   @override
   Widget build(BuildContext context) {
-    final tech = data.technical;
+    final tech = signal.technical;
     final reasons = tech.reasons;
     return Card(
       child: Padding(
@@ -719,12 +733,12 @@ class _PatternsCard extends StatelessWidget {
 // ── Support / Resistance / Pivot levels ───────────────────────────────────────
 
 class _LevelsCard extends StatelessWidget {
-  final StockDetailData data;
-  const _LevelsCard({required this.data});
+  final Levels levels;
+  final double price;
+  const _LevelsCard({required this.levels, required this.price});
 
   @override
   Widget build(BuildContext context) {
-    final price = data.quote.price;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -733,28 +747,28 @@ class _LevelsCard extends StatelessWidget {
           children: [
             const Text('Key Price Levels', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 4),
-            if (data.context.isNotEmpty)
-              Text(data.context,
+            if (levels.context.isNotEmpty)
+              Text(levels.context,
                   style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 12),
             const Text('Pivot Points (Daily)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
             const SizedBox(height: 6),
-            _PivotRow(label: 'R3', value: data.r3, price: price, color: AppTheme.red),
-            _PivotRow(label: 'R2', value: data.r2, price: price, color: AppTheme.red),
-            _PivotRow(label: 'R1', value: data.r1, price: price, color: AppTheme.red),
-            _PivotRow(label: 'PP', value: data.pp, price: price, color: AppTheme.blue),
-            _PivotRow(label: 'S1', value: data.s1, price: price, color: AppTheme.green),
-            _PivotRow(label: 'S2', value: data.s2, price: price, color: AppTheme.green),
-            _PivotRow(label: 'S3', value: data.s3, price: price, color: AppTheme.green),
-            if (data.resistance.isNotEmpty || data.support.isNotEmpty) ...[
+            _PivotRow(label: 'R3', value: levels.r3, price: price, color: AppTheme.red),
+            _PivotRow(label: 'R2', value: levels.r2, price: price, color: AppTheme.red),
+            _PivotRow(label: 'R1', value: levels.r1, price: price, color: AppTheme.red),
+            _PivotRow(label: 'PP', value: levels.pp, price: price, color: AppTheme.blue),
+            _PivotRow(label: 'S1', value: levels.s1, price: price, color: AppTheme.green),
+            _PivotRow(label: 'S2', value: levels.s2, price: price, color: AppTheme.green),
+            _PivotRow(label: 'S3', value: levels.s3, price: price, color: AppTheme.green),
+            if (levels.resistance.isNotEmpty || levels.support.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text('Swing S/R (60-day)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
               const SizedBox(height: 6),
-              if (data.resistance.isNotEmpty)
-                _SRRow(label: 'Resistance', values: data.resistance.reversed.toList(), color: AppTheme.red),
-              if (data.support.isNotEmpty)
-                _SRRow(label: 'Support', values: data.support, color: AppTheme.green),
+              if (levels.resistance.isNotEmpty)
+                _SRRow(label: 'Resistance', values: levels.resistance.reversed.toList(), color: AppTheme.red),
+              if (levels.support.isNotEmpty)
+                _SRRow(label: 'Support', values: levels.support, color: AppTheme.green),
             ],
           ],
         ),
