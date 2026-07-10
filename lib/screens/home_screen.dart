@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/stock_chart.dart';
 import '../widgets/signal_pill.dart';
 import 'stock_detail_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -130,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: _watched ? Colors.amber : null),
               onPressed: _toggleWatchlist,
             ),
+          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () =>
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
       body: Column(

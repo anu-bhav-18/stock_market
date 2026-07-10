@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/alert_service.dart';
 import '../services/watchlist_service.dart';
+import '../services/gemini_service.dart';
 import '../theme.dart';
 import '../widgets/stock_chart.dart';
+import 'ai_chat_screen.dart';
 
 class StockDetailScreen extends StatefulWidget {
   final String symbol;
@@ -19,6 +22,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   List<HistoryPoint> _history = [];
   SignalResult? _signal;
   Levels? _levels;
+  List<NewsItem> _news = [];
   bool _loading = true;
   String? _error;
   bool _watched = false;
@@ -36,6 +40,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     List<HistoryPoint> history = [];
     SignalResult? signal;
     Levels? levels;
+    List<NewsItem> news = [];
     bool watched = false;
 
     await Future.wait([
@@ -44,6 +49,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       ApiService.fetchSignal(widget.symbol).then((v) { signal = v; }).catchError((_) {}),
       ApiService.fetchLevels(widget.symbol).then((v) { levels = v; }).catchError((_) {}),
       WatchlistService.isWatched(widget.symbol).then((v) { watched = v; }).catchError((_) {}),
+      ApiService.fetchNews(widget.symbol).then((v) { news = v; }).catchError((_) {}),
     ]);
 
     if (quote == null && history.isEmpty) {
@@ -57,6 +63,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         _history = history;
         _signal = signal;
         _levels = levels;
+        _news = news;
         _watched = watched;
         _loading = false;
       });
@@ -67,6 +74,92 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     await WatchlistService.toggle(widget.symbol);
     final w = await WatchlistService.isWatched(widget.symbol);
     if (mounted) setState(() => _watched = w);
+  }
+
+  Future<void> _showAlertDialog() async {
+    final price = _quote?.price ?? 0;
+    final ctrl  = TextEditingController(text: price.toStringAsFixed(2));
+    bool isAbove = true;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text('Price Alert: ${widget.symbol.replaceAll('.NS', '')}'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Current: ₹${price.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.textSecondary)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Target Price (₹)'),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              const Text('Alert when price is'),
+              const SizedBox(width: 8),
+              ChoiceChip(label: const Text('Above'), selected: isAbove,
+                  onSelected: (_) => setSt(() => isAbove = true),
+                  selectedColor: AppTheme.green.withValues(alpha: 0.2)),
+              const SizedBox(width: 6),
+              ChoiceChip(label: const Text('Below'), selected: !isAbove,
+                  onSelected: (_) => setSt(() => isAbove = false),
+                  selectedColor: AppTheme.red.withValues(alpha: 0.2)),
+            ]),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final target = double.tryParse(ctrl.text.trim()) ?? 0;
+                if (target <= 0) return;
+                final messenger = ScaffoldMessenger.of(context);
+                await AlertService.addAlert(PriceAlert(
+                  symbol: widget.symbol, name: widget.name,
+                  targetPrice: target, isAbove: isAbove,
+                ));
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Alert set: ${isAbove ? 'above' : 'below'} ₹${target.toStringAsFixed(2)}'),
+                        backgroundColor: AppTheme.green),
+                  );
+                }
+              },
+              child: const Text('Set Alert'),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+  }
+
+  Future<void> _analyzeWithAI() async {
+    final ready = await GeminiService.init();
+    if (!ready) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Set your Gemini API key in Settings first'),
+        backgroundColor: AppTheme.red,
+      ));
+      return;
+    }
+    final s = _signal;
+    final q = _quote;
+    final response = await GeminiService.analyzeStock(
+      symbol: widget.symbol.replaceAll('.NS', ''),
+      name: widget.name,
+      price: q?.price ?? 0,
+      changePct: q?.changePct ?? 0,
+      signal: s?.technical.label ?? 'N/A',
+      score: s?.compositeScore ?? 0,
+      mlProb: s?.ml.probabilityUp,
+      reasons: s?.technical.reasons ?? [],
+    );
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => AiChatScreen(initialMessage: response),
+    ));
   }
 
   @override
@@ -83,6 +176,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Set Price Alert',
+            onPressed: _showAlertDialog,
+          ),
           IconButton(
             icon: Icon(_watched ? Icons.star_rounded : Icons.star_border_rounded,
                 color: _watched ? Colors.amber : null),
@@ -104,10 +202,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               ? _ErrorView(error: _error!, onRetry: _load)
               : _DetailBody(
                   symbol: widget.symbol,
+                  name: widget.name,
                   quote: _quote,
                   history: _history,
                   signal: _signal,
                   levels: _levels,
+                  news: _news,
+                  onAnalyzeAI: _analyzeWithAI,
                 ),
     );
   }
@@ -147,13 +248,17 @@ class _ErrorView extends StatelessWidget {
 
 class _DetailBody extends StatelessWidget {
   final String symbol;
+  final String name;
   final Quote? quote;
   final List<HistoryPoint> history;
   final SignalResult? signal;
   final Levels? levels;
+  final List<NewsItem> news;
+  final VoidCallback onAnalyzeAI;
   const _DetailBody({
-    required this.symbol, required this.quote, required this.history,
-    required this.signal, required this.levels,
+    required this.symbol, required this.name, required this.quote,
+    required this.history, required this.signal, required this.levels,
+    required this.news, required this.onAnalyzeAI,
   });
 
   @override
@@ -169,6 +274,21 @@ class _DetailBody extends StatelessWidget {
           _RecommendationCard(signal: signal!),
           const SizedBox(height: 12),
         ],
+        // AI Analyze button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: onAnalyzeAI,
+            icon: const Icon(Icons.psychology_rounded, size: 18),
+            label: const Text('Analyze with AI'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.blue,
+              side: const BorderSide(color: AppTheme.blue),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         if (history.isNotEmpty) ...[
           _ChartCard(history: history),
           const SizedBox(height: 12),
@@ -191,8 +311,12 @@ class _DetailBody extends StatelessWidget {
         ],
         if (levels != null) ...[
           _LevelsCard(levels: levels!, price: quote?.price ?? 0),
+          const SizedBox(height: 12),
         ],
-        const SizedBox(height: 24),
+        if (news.isNotEmpty) ...[
+          _NewsCard(news: news),
+          const SizedBox(height: 12),
+        ],
         const Text(
           '⚠ For educational use only. Not financial advice.',
           style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
@@ -847,4 +971,57 @@ class _SRRow extends StatelessWidget {
       ],
     ),
   );
+}
+
+// ── News ──────────────────────────────────────────────────────────────────────
+
+class _NewsCard extends StatelessWidget {
+  final List<NewsItem> news;
+  const _NewsCard({required this.news});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.newspaper_rounded, size: 16, color: AppTheme.blue),
+              const SizedBox(width: 6),
+              const Text('Latest News', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            ]),
+            const SizedBox(height: 10),
+            ...news.take(5).map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item.title,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Row(children: [
+                  Text(item.publisher,
+                      style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                  const Spacer(),
+                  Text(_formatTime(item.publishTime),
+                      style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                ]),
+                if (item != news.take(5).last)
+                  const Divider(height: 14, thickness: 0.5),
+              ]),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime? t) {
+    if (t == null) return '';
+    final diff = DateTime.now().difference(t);
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 }

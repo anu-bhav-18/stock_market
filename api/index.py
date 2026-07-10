@@ -371,3 +371,128 @@ def option_chain(symbol: str, expiry: str = Query(default=None)):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"NSE data unavailable: {str(e)}")
+
+
+# ── News ──────────────────────────────────────────────────────────────────────
+
+@app.get("/news/{symbol}")
+def get_news(symbol: str):
+    """Latest news headlines for a stock via yfinance."""
+    try:
+        tk = yf.Ticker(symbol)
+        news = tk.news or []
+        result = []
+        for n in news[:10]:
+            ct = n.get("content", {})
+            pub_date = None
+            if ct.get("pubDate"):
+                pub_date = ct["pubDate"]
+            elif n.get("providerPublishTime"):
+                from datetime import datetime, timezone
+                pub_date = datetime.fromtimestamp(n["providerPublishTime"], tz=timezone.utc).isoformat()
+            result.append({
+                "title":        ct.get("title") or n.get("title", ""),
+                "publisher":    (ct.get("provider") or {}).get("displayName") or n.get("publisher", ""),
+                "link":         (ct.get("canonicalUrl") or {}).get("url") or n.get("link", ""),
+                "publish_time": pub_date,
+                "summary":      ct.get("summary") or None,
+            })
+        return JSONResponse(content=_jsonify(result))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"News error: {str(e)}")
+
+
+# ── Market breadth & 52-week ──────────────────────────────────────────────────
+
+@app.get("/market/breadth")
+def market_breadth(index: str = Query(default="Nifty 50")):
+    """Advance/decline ratio + % above SMA50 for an index."""
+    symbols = get_symbols_for_index(index)
+
+    def _check(symbol):
+        try:
+            df = _history(symbol, period="3mo")
+            if df.empty or len(df) < 2:
+                return None
+            data = add_indicators(df)
+            last  = data.iloc[-1]
+            prev  = data.iloc[-2]
+            chg   = float((last["Close"] - prev["Close"]) / prev["Close"] * 100)
+            sma50 = last.get("SMA_50")
+            above = bool(pd.notna(sma50) and last["Close"] > sma50)
+            return {"change": chg, "above_sma50": above}
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(_check, s): s for s in symbols}
+        for f in as_completed(futures):
+            r = f.result()
+            if r:
+                results.append(r)
+
+    if not results:
+        raise HTTPException(status_code=503, detail="Could not fetch breadth data")
+
+    advancing  = sum(1 for r in results if r["change"] > 0.05)
+    declining  = sum(1 for r in results if r["change"] < -0.05)
+    unchanged  = len(results) - advancing - declining
+    adr        = round(advancing / declining, 2) if declining > 0 else float(advancing)
+    above_50   = round(sum(1 for r in results if r["above_sma50"]) / len(results) * 100, 1)
+    avg_chg    = round(sum(r["change"] for r in results) / len(results), 2)
+
+    return JSONResponse(content=_jsonify({
+        "advancing": advancing, "declining": declining, "unchanged": unchanged,
+        "total": len(results), "advance_decline_ratio": adr,
+        "pct_above_sma50": above_50, "average_change_pct": avg_chg,
+    }))
+
+
+@app.get("/market/52week")
+def week52(index: str = Query(default="Nifty 50"), type: str = Query(default="high")):
+    """Stocks near 52-week high or low."""
+    symbols = get_symbols_for_index(index)
+
+    def _check(symbol):
+        try:
+            df = _history(symbol, period="1y")
+            if df.empty or len(df) < 50:
+                return None
+            high52 = float(df["High"].max())
+            low52  = float(df["Low"].min())
+            last   = float(df["Close"].iloc[-1])
+            prev   = float(df["Close"].iloc[-2])
+            chg    = float((last - prev) / prev * 100)
+            pct_from_high = (last - high52) / high52 * 100
+            pct_from_low  = (last - low52) / low52 * 100
+            return {
+                "symbol":     symbol.replace(".NS", ""),
+                "full_symbol": symbol,
+                "name":       ALL_STOCKS.get(symbol, symbol),
+                "price":      last,
+                "day_change_pct": chg,
+                "high_52w":   high52,
+                "low_52w":    low52,
+                "pct_from_high": round(pct_from_high, 2),
+                "pct_from_low":  round(pct_from_low, 2),
+                "composite_score": 50.0,
+                "technical_label": "Near High" if type == "high" else "Near Low",
+            }
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = {ex.submit(_check, s): s for s in symbols}
+        for f in as_completed(futures):
+            r = f.result()
+            if r:
+                results.append(r)
+
+    if type == "high":
+        results.sort(key=lambda x: x["pct_from_high"], reverse=True)  # closest to high first
+    else:
+        results.sort(key=lambda x: x["pct_from_low"])  # closest to low first
+
+    return JSONResponse(content=_jsonify(results[:20]))

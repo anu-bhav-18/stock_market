@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
+import 'settings_service.dart';
 
 class ApiService {
-  static const String base = String.fromEnvironment(
-    'API_BASE',
-    defaultValue: 'https://stock-market-sandy-theta.vercel.app',
-  );
+  static Future<String> _base() => SettingsService.getApiBase();
 
   static Future<T> _get<T>(String path, T Function(dynamic) parse) async {
+    final base = await _base();
     final res = await http
         .get(Uri.parse('$base$path'))
         .timeout(const Duration(seconds: 90));
@@ -55,11 +54,6 @@ class ApiService {
         (d) => ReturnResult.fromJson(d as Map<String, dynamic>),
       );
 
-  static Future<StockDetailData> fetchStockDetail(String symbol, {int horizon = 5}) => _get(
-        '/stock/$symbol?horizon=$horizon',
-        (d) => StockDetailData.fromJson(d as Map<String, dynamic>),
-      );
-
   // ── Levels & Patterns ──────────────────────────────────────────────────────
 
   static Future<Levels> fetchLevels(String symbol) => _get(
@@ -94,4 +88,27 @@ class ApiService {
       (d) => OptionsChain.fromJson(d as Map<String, dynamic>),
     );
   }
+
+  // ── News ───────────────────────────────────────────────────────────────────
+
+  static Future<List<NewsItem>> fetchNews(String symbol) => _get(
+        '/news/$symbol',
+        (d) => (d as List).map((e) => NewsItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  // ── Market breadth & 52-week ──────────────────────────────────────────────
+
+  static Future<MarketBreadth> fetchMarketBreadth({String index = 'Nifty 50'}) => _get(
+        '/market/breadth?index=${Uri.encodeComponent(index)}',
+        (d) => MarketBreadth.fromJson(d as Map<String, dynamic>),
+      );
+
+  static Future<List<MoverStock>> fetch52Week({
+    String index = 'Nifty 50',
+    String type = 'high',
+  }) =>
+      _get(
+        '/market/52week?index=${Uri.encodeComponent(index)}&type=$type',
+        (d) => (d as List).map((e) => MoverStock.fromJson(e as Map<String, dynamic>)).toList(),
+      );
 }

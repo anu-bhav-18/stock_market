@@ -311,6 +311,50 @@ class StockDetailData {
   );
 }
 
+// ── News ─────────────────────────────────────────────────────────────────────
+
+class NewsItem {
+  final String title;
+  final String publisher;
+  final String link;
+  final DateTime? publishTime;
+  final String? summary;
+  const NewsItem({required this.title, required this.publisher, required this.link, this.publishTime, this.summary});
+  factory NewsItem.fromJson(Map<String, dynamic> j) => NewsItem(
+    title: j['title'] as String,
+    publisher: j['publisher'] as String? ?? '',
+    link: j['link'] as String? ?? '',
+    publishTime: j['publish_time'] != null ? DateTime.tryParse(j['publish_time'] as String) : null,
+    summary: j['summary'] as String?,
+  );
+}
+
+// ── Market breadth ────────────────────────────────────────────────────────────
+
+class MarketBreadth {
+  final int advancing;
+  final int declining;
+  final int unchanged;
+  final int total;
+  final double advanceDeclineRatio;
+  final double pctAboveSma50;
+  final double averageChangePct;
+  const MarketBreadth({
+    required this.advancing, required this.declining, required this.unchanged,
+    required this.total, required this.advanceDeclineRatio,
+    required this.pctAboveSma50, required this.averageChangePct,
+  });
+  factory MarketBreadth.fromJson(Map<String, dynamic> j) => MarketBreadth(
+    advancing: (j['advancing'] as num).toInt(),
+    declining: (j['declining'] as num).toInt(),
+    unchanged: (j['unchanged'] as num? ?? 0).toInt(),
+    total: (j['total'] as num).toInt(),
+    advanceDeclineRatio: (j['advance_decline_ratio'] as num).toDouble(),
+    pctAboveSma50: (j['pct_above_sma50'] as num).toDouble(),
+    averageChangePct: (j['average_change_pct'] as num).toDouble(),
+  );
+}
+
 // ── F&O models ────────────────────────────────────────────────────────────────
 
 class StrikeData {
