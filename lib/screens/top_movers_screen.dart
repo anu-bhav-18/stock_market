@@ -32,7 +32,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ðŸš€ Top Movers')),
+      appBar: AppBar(title: const Text('Top Movers')),
       body: Column(
         children: [
           Padding(
@@ -65,7 +65,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
                   const SizedBox(height: 12),
                   const LinearProgressIndicator(color: AppTheme.green),
                   const SizedBox(height: 6),
-                  const Text('Analysing 50 stocks, this may take a minuteâ€¦',
+                  const Text('Analysing stocks, this may take a minute...',
                       style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 ],
               ],
@@ -91,7 +91,7 @@ class _TopMoversScreenState extends State<TopMoversScreen> {
                     Text('Press Scan to rank all Nifty 50 stocks',
                         style: TextStyle(color: AppTheme.textSecondary)),
                     SizedBox(height: 4),
-                    Text('Fetches live data for 50 stocks â€” takes ~1 min',
+                    Text('Fetches live data - takes ~1 min',
                         style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                   ],
                 ),

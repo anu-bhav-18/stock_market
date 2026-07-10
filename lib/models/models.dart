@@ -193,14 +193,23 @@ class OptionsChain {
   final String pcrSignal;
   final double maxPain;
   final String direction;
+  final List<String> reasoning;
+  final String oiBias;
   final int totalCeOI;
   final int totalPeOI;
+  final double atmCeLtp;
+  final double atmPeLtp;
+  final double atmCeIv;
+  final double atmPeIv;
   final List<StrikeData> strikes;
 
   const OptionsChain({
     required this.spot, required this.selectedExpiry, required this.allExpiries,
     required this.pcr, required this.pcrSignal, required this.maxPain,
-    required this.direction, required this.totalCeOI, required this.totalPeOI,
+    required this.direction, required this.reasoning, required this.oiBias,
+    required this.totalCeOI, required this.totalPeOI,
+    required this.atmCeLtp, required this.atmPeLtp,
+    required this.atmCeIv, required this.atmPeIv,
     required this.strikes,
   });
 
@@ -212,8 +221,14 @@ class OptionsChain {
         pcrSignal: j['pcr_signal'] as String,
         maxPain: (j['max_pain'] as num).toDouble(),
         direction: j['direction'] as String,
+        reasoning: List<String>.from(j['reasoning'] as List? ?? []),
+        oiBias: j['oi_bias'] as String? ?? '',
         totalCeOI: (j['total_ce_oi'] as num).toInt(),
         totalPeOI: (j['total_pe_oi'] as num).toInt(),
+        atmCeLtp: (j['atm_ce_ltp'] as num? ?? 0).toDouble(),
+        atmPeLtp: (j['atm_pe_ltp'] as num? ?? 0).toDouble(),
+        atmCeIv: (j['atm_ce_iv'] as num? ?? 0).toDouble(),
+        atmPeIv: (j['atm_pe_iv'] as num? ?? 0).toDouble(),
         strikes: (j['strikes'] as List)
             .map((e) => StrikeData.fromJson(e as Map<String, dynamic>))
             .toList(),

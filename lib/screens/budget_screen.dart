@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -88,7 +88,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ðŸ§® Budget Calculator')),
+      appBar: AppBar(title: const Text('Budget Calculator')),
       body: _loadingStocks
           ? const Center(child: CircularProgressIndicator(color: AppTheme.green))
           : ListView(
@@ -129,8 +129,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 TextFormField(
                   controller: _budgetCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Your budget (â‚¹)',
-                    prefixText: 'â‚¹ ',
+                    labelText: 'Your budget (₹)',
+                    prefixText: '₹ ',
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -165,7 +165,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Budget is less than one share (â‚¹${_quote!.price.toStringAsFixed(2)}). Increase budget to see projection.',
+                        'Budget is less than one share (₹${_quote!.price.toStringAsFixed(2)}). Increase budget to see projection.',
                         style: const TextStyle(color: Colors.orange, fontSize: 13),
                       ),
                     ),
@@ -222,15 +222,15 @@ class _AllocationCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _Stat(label: 'Current Price', value: 'â‚¹${quote.price.toStringAsFixed(2)}')),
+                Expanded(child: _Stat(label: 'Current Price', value: '₹${quote.price.toStringAsFixed(2)}')),
                 Expanded(child: _Stat(label: 'Shares you can buy', value: '$shares')),
               ],
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _Stat(label: 'Amount invested', value: 'â‚¹${invested.toStringAsFixed(0)}')),
-                Expanded(child: _Stat(label: 'Leftover', value: 'â‚¹${leftover.toStringAsFixed(0)}')),
+                Expanded(child: _Stat(label: 'Amount invested', value: '₹${invested.toStringAsFixed(0)}')),
+                Expanded(child: _Stat(label: 'Leftover', value: '₹${leftover.toStringAsFixed(0)}')),
               ],
             ),
           ],
@@ -298,10 +298,10 @@ class _ProjectionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Projected value', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-                      Text('â‚¹${projectedValue.toStringAsFixed(0)}',
+                      Text('₹${projectedValue.toStringAsFixed(0)}',
                           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
                       Text(
-                        '${isUp ? '+' : ''}${expectedReturnPct.toStringAsFixed(1)}%  (${isUp ? '+' : ''}â‚¹${projectedGain.toStringAsFixed(0)})',
+                        '${isUp ? '+' : ''}${expectedReturnPct.toStringAsFixed(1)}%  (${isUp ? '+' : ''}₹${projectedGain.toStringAsFixed(0)})',
                         style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600),
                       ),
                     ],

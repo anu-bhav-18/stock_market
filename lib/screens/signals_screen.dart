@@ -36,7 +36,7 @@ class _SignalsScreenState extends State<SignalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ðŸ“Š Signals')),
+      appBar: AppBar(title: const Text('Signals')),
       body: Column(
         children: [
           _FilterBar(
@@ -53,7 +53,7 @@ class _SignalsScreenState extends State<SignalsScreen> {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
-                'Scanning $_selectedIndexâ€¦',
+                'Scanning $_selectedIndex...',
                 style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
             ),

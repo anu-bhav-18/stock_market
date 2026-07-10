@@ -46,13 +46,16 @@ class _FnoScreenState extends State<FnoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('⚡ F&O Signals'),
+        title: const Text('F&O Signals'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: _SymbolBar(
             symbols: _indexSymbols,
             selected: _symbol,
-            onChanged: (s) { setState(() { _symbol = s; _expiry = null; _chain = null; }); _load(); },
+            onChanged: (s) {
+              setState(() { _symbol = s; _expiry = null; _chain = null; });
+              _load();
+            },
           ),
         ),
       ),
@@ -62,7 +65,9 @@ class _FnoScreenState extends State<FnoScreen> {
               children: [
                 CircularProgressIndicator(color: AppTheme.green),
                 SizedBox(height: 12),
-                Text('Fetching NSE live data…', style: TextStyle(color: AppTheme.textSecondary)),
+                Text('Fetching NSE live data...', style: TextStyle(color: AppTheme.textSecondary)),
+                SizedBox(height: 6),
+                Text('This may take 10-20 seconds', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
               ],
             ))
           : _error != null
@@ -161,14 +166,14 @@ class _ChainView extends StatelessWidget {
           ),
         const SizedBox(height: 14),
 
-        // Signal card
-        _SignalCard(chain: chain),
+        // Recommendation card
+        _RecommendationCard(chain: chain),
         const SizedBox(height: 12),
 
         // Stats row
         Row(
           children: [
-            Expanded(child: _StatCard(label: 'Spot', value: '₹${chain.spot.toStringAsFixed(1)}')),
+            Expanded(child: _StatCard(label: 'Spot', value: '₹${chain.spot.toStringAsFixed(0)}')),
             const SizedBox(width: 8),
             Expanded(child: _StatCard(label: 'Max Pain', value: '₹${chain.maxPain.toStringAsFixed(0)}')),
             const SizedBox(width: 8),
@@ -181,6 +186,14 @@ class _ChainView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
+        // ATM option prices
+        _AtmCard(chain: chain),
+        const SizedBox(height: 12),
+
+        // CE vs PE LTP chart
+        _LTPChart(chain: chain),
+        const SizedBox(height: 12),
+
         // OI bar chart
         _OIChart(chain: chain),
         const SizedBox(height: 12),
@@ -189,7 +202,7 @@ class _ChainView extends StatelessWidget {
         _ChainTable(chain: chain),
         const SizedBox(height: 24),
         const Text(
-          '⚠️ Options trading involves significant risk. This is for educational purposes only.',
+          '⚠ Options trading involves significant risk. Educational purposes only.',
           style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),
@@ -198,58 +211,264 @@ class _ChainView extends StatelessWidget {
   }
 }
 
-class _SignalCard extends StatelessWidget {
+class _RecommendationCard extends StatelessWidget {
   final OptionsChain chain;
-  const _SignalCard({required this.chain});
+  const _RecommendationCard({required this.chain});
 
-  Color get _directionColor {
+  Color get _color {
     if (chain.direction.contains('CE')) return AppTheme.green;
     if (chain.direction.contains('PE')) return AppTheme.red;
     return Colors.orange;
   }
+
+  IconData get _icon {
+    if (chain.direction.contains('CE')) return Icons.trending_up;
+    if (chain.direction.contains('PE')) return Icons.trending_down;
+    return Icons.drag_handle;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: _color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_icon, color: _color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Recommendation', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                      Text(chain.direction,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _color)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: chain.pcr > 1.2
+                        ? AppTheme.green.withValues(alpha: 0.1)
+                        : chain.pcr < 0.8
+                            ? AppTheme.red.withValues(alpha: 0.1)
+                            : Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(chain.pcrSignal,
+                      style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700,
+                        color: chain.pcr > 1.2 ? AppTheme.green : chain.pcr < 0.8 ? AppTheme.red : Colors.orange,
+                      )),
+                ),
+              ],
+            ),
+            if (chain.reasoning.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              ...chain.reasoning.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• ', style: TextStyle(color: AppTheme.blue, fontWeight: FontWeight.w700)),
+                    Expanded(child: Text(r, style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary))),
+                  ],
+                ),
+              )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AtmCard extends StatelessWidget {
+  final OptionsChain chain;
+  const _AtmCard({required this.chain});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48, height: 48,
-              decoration: BoxDecoration(
-                color: _directionColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                chain.direction.contains('CE')
-                    ? Icons.trending_up
-                    : chain.direction.contains('PE')
-                        ? Icons.trending_down
-                        : Icons.drag_handle,
-                color: _directionColor,
-                size: 26,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(chain.direction,
-                      style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w800, color: _directionColor,
-                      )),
-                  Text('PCR ${chain.pcr.toStringAsFixed(2)} — ${chain.pcrSignal}  |  Max Pain ₹${chain.maxPain.toStringAsFixed(0)}',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-                ],
-              ),
+            Text('ATM Strike: ${chain.atmStrike.toStringAsFixed(0)}',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _AtmOption(
+                  label: 'CALL (CE)',
+                  ltp: chain.atmCeLtp,
+                  iv: chain.atmCeIv,
+                  color: AppTheme.red,
+                )),
+                Container(width: 1, height: 50, color: Colors.grey.shade200),
+                Expanded(child: _AtmOption(
+                  label: 'PUT (PE)',
+                  ltp: chain.atmPeLtp,
+                  iv: chain.atmPeIv,
+                  color: AppTheme.green,
+                )),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _AtmOption extends StatelessWidget {
+  final String label;
+  final double ltp;
+  final double iv;
+  final Color color;
+  const _AtmOption({required this.label, required this.ltp, required this.iv, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+          const SizedBox(height: 4),
+          Text('₹${ltp.toStringAsFixed(1)}',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          Text('IV: ${iv.toStringAsFixed(1)}%',
+              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _LTPChart extends StatelessWidget {
+  final OptionsChain chain;
+  const _LTPChart({required this.chain});
+
+  @override
+  Widget build(BuildContext context) {
+    final atm = chain.atmStrike;
+    final sorted = [...chain.strikes]
+      ..sort((a, b) => (a.strike - atm).abs().compareTo((b.strike - atm).abs()));
+    final display = sorted.take(11).toList()..sort((a, b) => a.strike.compareTo(b.strike));
+
+    if (display.isEmpty) return const SizedBox.shrink();
+
+    final ceLtps = display.map((s) => s.ceLTP).toList();
+    final peLtps = display.map((s) => s.peLTP).toList();
+    final maxY = [...ceLtps, ...peLtps].fold<double>(0, (m, v) => v > m ? v : m) * 1.2;
+
+    List<FlSpot> spots(List<double> vals) =>
+        vals.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('CE vs PE Option Price (ATM ±5)',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Row(children: [
+              _Legend(color: AppTheme.red, label: 'CE LTP'),
+              const SizedBox(width: 12),
+              _Legend(color: AppTheme.green, label: 'PE LTP'),
+            ]),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 160,
+              child: LineChart(LineChartData(
+                minY: 0,
+                maxY: maxY,
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.shade100, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 2,
+                      getTitlesWidget: (v, _) {
+                        final idx = v.toInt();
+                        if (idx < 0 || idx >= display.length) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            display[idx].strike.toStringAsFixed(0),
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: display[idx].strike == atm ? FontWeight.w800 : FontWeight.normal,
+                              color: display[idx].strike == atm ? AppTheme.blue : AppTheme.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots(ceLtps),
+                    isCurved: true,
+                    color: AppTheme.red,
+                    barWidth: 2,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(show: true, color: AppTheme.red.withValues(alpha: 0.05)),
+                  ),
+                  LineChartBarData(
+                    spots: spots(peLtps),
+                    isCurved: true,
+                    color: AppTheme.green,
+                    barWidth: 2,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(show: true, color: AppTheme.green.withValues(alpha: 0.05)),
+                  ),
+                ],
+              )),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _Legend({required this.color, required this.label});
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(width: 12, height: 3, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+      ]);
 }
 
 class _StatCard extends StatelessWidget {
@@ -286,7 +505,6 @@ class _OIChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final atm = chain.atmStrike;
-    // Pick 10 strikes around ATM
     final sorted = [...chain.strikes]..sort((a, b) => (a.strike - atm).abs().compareTo((b.strike - atm).abs()));
     final display = sorted.take(10).toList()..sort((a, b) => a.strike.compareTo(b.strike));
 
@@ -300,7 +518,7 @@ class _OIChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Open Interest (ATM ± 5 strikes)',
+            const Text('Open Interest (ATM ±5 strikes)',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             Row(children: [
               _OILegend(color: AppTheme.red, label: 'CE OI'),
@@ -328,9 +546,7 @@ class _OIChart extends StatelessWidget {
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              strike >= 1000
-                                  ? strike.toStringAsFixed(0)
-                                  : strike.toStringAsFixed(0),
+                              strike.toStringAsFixed(0),
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: isAtm ? FontWeight.w800 : FontWeight.normal,
@@ -389,7 +605,6 @@ class _ChainTable extends StatelessWidget {
     return Card(
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: const BoxDecoration(
@@ -398,7 +613,7 @@ class _ChainTable extends StatelessWidget {
             ),
             child: const Row(
               children: [
-                Expanded(child: Text('CE OI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.red), textAlign: TextAlign.left)),
+                Expanded(child: Text('CE OI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.red))),
                 Expanded(child: Text('CE LTP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.red), textAlign: TextAlign.center)),
                 Expanded(child: Text('STRIKE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.blue), textAlign: TextAlign.center)),
                 Expanded(child: Text('PE LTP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.green), textAlign: TextAlign.center)),
@@ -453,7 +668,17 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             const Text('NSE data unavailable', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text(error, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary), textAlign: TextAlign.center),
+            Text(
+              error.length > 200 ? '${error.substring(0, 200)}...' : error,
+              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'NSE blocks cloud server IPs.\nTry during market hours (9:15 AM – 3:30 PM IST).',
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],

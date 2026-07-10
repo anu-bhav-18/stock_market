@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -66,7 +66,7 @@ class _PredictionScreenState extends State<PredictionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ðŸ”® Stock Prediction')),
+      appBar: AppBar(title: const Text('Stock Prediction')),
       body: _loadingStocks
           ? const Center(child: CircularProgressIndicator(color: AppTheme.green))
           : ListView(
@@ -223,7 +223,7 @@ class _ReasonsCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('â€¢ ', style: TextStyle(color: AppTheme.green, fontWeight: FontWeight.w700)),
+                  const Text('• ', style: TextStyle(color: AppTheme.green, fontWeight: FontWeight.w700)),
                   Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
                 ],
               ),
@@ -329,7 +329,7 @@ class _Disclaimer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      'âš ï¸ Educational use only. Predictions are statistical estimates from historical data. Not investment advice.',
+      'šš ï¸ Educational use only. Predictions are statistical estimates from historical data. Not investment advice.',
       style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
       textAlign: TextAlign.center,
     );

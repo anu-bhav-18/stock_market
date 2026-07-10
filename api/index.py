@@ -209,5 +209,7 @@ def option_chain(symbol: str, expiry: str = Query(default=None)):
             result["strikes"].sort(key=lambda s: s["strike"])
 
         return result
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"NSE data unavailable: {str(e)}")
