@@ -13,6 +13,7 @@ import 'screens/all_stocks_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/compare_screen.dart';
 import 'screens/market_breadth_screen.dart';
+import 'screens/market_trends_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -130,6 +131,7 @@ class _AppDrawer extends StatelessWidget {
             _Section('Market'),
             _DrawerItem(icon: Icons.list_alt_outlined,     label: 'All Stocks',       onTap: () => _go(context, const AllStocksScreen())),
             _DrawerItem(icon: Icons.bar_chart_rounded,     label: 'Market Breadth',   onTap: () => _go(context, const MarketBreadthScreen())),
+            _DrawerItem(icon: Icons.trending_up_rounded,   label: 'Market Trends',    onTap: () => _go(context, const MarketTrendsScreen())),
             _Section('Tools'),
             _DrawerItem(icon: Icons.psychology_rounded,    label: 'AI Chat',          onTap: () => _go(context, const AiChatScreen())),
             _DrawerItem(icon: Icons.settings_outlined,     label: 'Settings',         onTap: () => _go(context, const SettingsScreen())),

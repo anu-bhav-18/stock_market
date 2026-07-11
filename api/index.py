@@ -505,3 +505,61 @@ def week52(index: str = Query(default="Nifty 50"), type: str = Query(default="hi
         results.sort(key=lambda x: x["pct_from_low"])  # closest to low first
 
     return JSONResponse(content=_jsonify(results[:20]))
+
+
+@app.get("/market/trends")
+def market_trends(index: str = Query(default="Nifty 50"), period: str = Query(default="1wk")):
+    """
+    Week or month-wise top gainers/losers + index return.
+    period: '1wk' or '1mo'
+    """
+    symbols = get_symbols_for_index(index)
+    yf_period = "1mo" if period == "1mo" else "5d"
+
+    def _check(symbol):
+        try:
+            df = yf.download(symbol, period=yf_period, interval="1d",
+                             auto_adjust=True, progress=False, threads=False)
+            if df is None or df.empty or len(df) < 2:
+                return None
+            first = float(df["Close"].iloc[0])
+            last  = float(df["Close"].iloc[-1])
+            if first == 0:
+                return None
+            ret = round((last - first) / first * 100, 2)
+            vol = float(df["Volume"].mean()) if "Volume" in df.columns else 0.0
+            high = float(df["High"].max())
+            low  = float(df["Low"].min())
+            return {
+                "symbol":    symbol.replace(".NS", ""),
+                "name":      ALL_STOCKS.get(symbol, symbol.replace(".NS", "")),
+                "start_price": round(first, 2),
+                "end_price":   round(last, 2),
+                "return_pct":  ret,
+                "period_high": round(high, 2),
+                "period_low":  round(low, 2),
+                "avg_volume":  round(vol, 0),
+            }
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {ex.submit(_check, s): s for s in symbols}
+        for f in as_completed(futures):
+            r = f.result()
+            if r:
+                results.append(r)
+
+    gainers = sorted([r for r in results if r["return_pct"] > 0], key=lambda x: x["return_pct"], reverse=True)
+    losers  = sorted([r for r in results if r["return_pct"] < 0], key=lambda x: x["return_pct"])
+    avg_ret = round(sum(r["return_pct"] for r in results) / len(results), 2) if results else 0.0
+
+    return JSONResponse(content=_jsonify({
+        "index":   index,
+        "period":  period,
+        "avg_return_pct": avg_ret,
+        "total":   len(results),
+        "gainers": gainers[:10],
+        "losers":  losers[:10],
+    }))

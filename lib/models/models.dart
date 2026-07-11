@@ -470,6 +470,9 @@ class OptionsChain {
   final double atmPeIv;
   final List<StrikeData> strikes;
   final NextDayPrediction? nextDay;
+  final String marketStatus;
+  final String marketNote;
+  final String lastDataDate;
 
   const OptionsChain({
     required this.spot, required this.selectedExpiry, required this.allExpiries,
@@ -479,35 +482,91 @@ class OptionsChain {
     required this.atmCeLtp, required this.atmPeLtp,
     required this.atmCeIv, required this.atmPeIv,
     required this.strikes, this.nextDay,
+    this.marketStatus = '', this.marketNote = '', this.lastDataDate = '',
   });
 
-  factory OptionsChain.fromJson(Map<String, dynamic> j) => OptionsChain(
-        spot: (j['spot'] as num).toDouble(),
-        selectedExpiry: j['selected_expiry'] as String? ?? '',
-        allExpiries: List<String>.from(j['all_expiries'] as List? ?? []),
-        pcr: (j['pcr'] as num).toDouble(),
-        pcrSignal: j['pcr_signal'] as String,
-        maxPain: (j['max_pain'] as num).toDouble(),
-        direction: j['direction'] as String,
-        reasoning: List<String>.from(j['reasoning'] as List? ?? []),
-        oiBias: j['oi_bias'] as String? ?? '',
-        totalCeOI: (j['total_ce_oi'] as num).toInt(),
-        totalPeOI: (j['total_pe_oi'] as num).toInt(),
-        atmCeLtp: (j['atm_ce_ltp'] as num? ?? 0).toDouble(),
-        atmPeLtp: (j['atm_pe_ltp'] as num? ?? 0).toDouble(),
-        atmCeIv: (j['atm_ce_iv'] as num? ?? 0).toDouble(),
-        atmPeIv: (j['atm_pe_iv'] as num? ?? 0).toDouble(),
-        strikes: (j['strikes'] as List)
-            .map((e) => StrikeData.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        nextDay: j['next_day'] != null
-            ? NextDayPrediction.fromJson(j['next_day'] as Map<String, dynamic>)
-            : null,
-      );
+  factory OptionsChain.fromJson(Map<String, dynamic> j) {
+    final ms = j['market_status'] as Map<String, dynamic>? ?? {};
+    return OptionsChain(
+      spot: (j['spot'] as num).toDouble(),
+      selectedExpiry: j['selected_expiry'] as String? ?? '',
+      allExpiries: List<String>.from(j['all_expiries'] as List? ?? []),
+      pcr: (j['pcr'] as num).toDouble(),
+      pcrSignal: j['pcr_signal'] as String,
+      maxPain: (j['max_pain'] as num).toDouble(),
+      direction: j['direction'] as String,
+      reasoning: List<String>.from(j['reasoning'] as List? ?? []),
+      oiBias: j['oi_bias'] as String? ?? '',
+      totalCeOI: (j['total_ce_oi'] as num).toInt(),
+      totalPeOI: (j['total_pe_oi'] as num).toInt(),
+      atmCeLtp: (j['atm_ce_ltp'] as num? ?? 0).toDouble(),
+      atmPeLtp: (j['atm_pe_ltp'] as num? ?? 0).toDouble(),
+      atmCeIv: (j['atm_ce_iv'] as num? ?? 0).toDouble(),
+      atmPeIv: (j['atm_pe_iv'] as num? ?? 0).toDouble(),
+      strikes: (j['strikes'] as List)
+          .map((e) => StrikeData.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      nextDay: j['next_day'] != null
+          ? NextDayPrediction.fromJson(j['next_day'] as Map<String, dynamic>)
+          : null,
+      marketStatus: ms['status'] as String? ?? '',
+      marketNote: ms['note'] as String? ?? '',
+      lastDataDate: j['last_data_date'] as String? ?? '',
+    );
+  }
 
   double get atmStrike {
     if (strikes.isEmpty) return spot;
     return strikes.reduce((a, b) =>
         (a.strike - spot).abs() < (b.strike - spot).abs() ? a : b).strike;
   }
+}
+
+class TrendStock {
+  final String symbol;
+  final String name;
+  final double startPrice;
+  final double endPrice;
+  final double returnPct;
+  final double periodHigh;
+  final double periodLow;
+  const TrendStock({
+    required this.symbol, required this.name,
+    required this.startPrice, required this.endPrice, required this.returnPct,
+    required this.periodHigh, required this.periodLow,
+  });
+  factory TrendStock.fromJson(Map<String, dynamic> j) => TrendStock(
+        symbol: j['symbol'] as String,
+        name: j['name'] as String? ?? j['symbol'] as String,
+        startPrice: (j['start_price'] as num).toDouble(),
+        endPrice: (j['end_price'] as num).toDouble(),
+        returnPct: (j['return_pct'] as num).toDouble(),
+        periodHigh: (j['period_high'] as num).toDouble(),
+        periodLow: (j['period_low'] as num).toDouble(),
+      );
+}
+
+class MarketTrends {
+  final String index;
+  final String period;
+  final double avgReturnPct;
+  final int total;
+  final List<TrendStock> gainers;
+  final List<TrendStock> losers;
+  const MarketTrends({
+    required this.index, required this.period, required this.avgReturnPct,
+    required this.total, required this.gainers, required this.losers,
+  });
+  factory MarketTrends.fromJson(Map<String, dynamic> j) => MarketTrends(
+        index: j['index'] as String? ?? '',
+        period: j['period'] as String? ?? '1wk',
+        avgReturnPct: (j['avg_return_pct'] as num? ?? 0).toDouble(),
+        total: (j['total'] as num? ?? 0).toInt(),
+        gainers: (j['gainers'] as List? ?? [])
+            .map((e) => TrendStock.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        losers: (j['losers'] as List? ?? [])
+            .map((e) => TrendStock.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 }

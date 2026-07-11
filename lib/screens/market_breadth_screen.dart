@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/gemini_service.dart';
 import '../theme.dart';
 
 class MarketBreadthScreen extends StatefulWidget {
@@ -73,19 +74,57 @@ class _MarketBreadthScreenState extends State<MarketBreadthScreen> {
           Padding(padding: const EdgeInsets.all(16),
               child: Text(_error!, style: const TextStyle(color: AppTheme.red))),
         if (_breadth != null)
-          Expanded(child: _BreadthView(breadth: _breadth!, index: _index)),
+          Expanded(child: _BreadthView(breadth: _breadth!, index: _index, onReload: _load)),
       ]),
     );
   }
 }
 
-class _BreadthView extends StatelessWidget {
+class _BreadthView extends StatefulWidget {
   final MarketBreadth breadth;
   final String index;
-  const _BreadthView({required this.breadth, required this.index});
+  final VoidCallback onReload;
+  const _BreadthView({required this.breadth, required this.index, required this.onReload});
+  @override
+  State<_BreadthView> createState() => _BreadthViewState();
+}
+
+class _BreadthViewState extends State<_BreadthView> {
+  String? _aiPrediction;
+  bool _aiLoading = false;
+
+  Future<void> _getAiPrediction() async {
+    setState(() { _aiLoading = true; _aiPrediction = null; });
+    try {
+      await GeminiService.init();
+      GeminiService.reset();
+      final b = widget.breadth;
+      final adRatio = b.advanceDeclineRatio;
+      final mood = adRatio > 1.5 ? 'Bullish' : adRatio < 0.7 ? 'Bearish' : 'Neutral';
+      final prompt = '''
+You are a professional Indian stock market analyst. Based on the following ${widget.index} market breadth data, give a concise next-day market prediction:
+
+- Market Mood: $mood
+- Advance/Decline Ratio: ${adRatio.toStringAsFixed(2)} (Advancing: ${b.advancing}, Declining: ${b.declining}, Unchanged: ${b.unchanged})
+- Average Day Change: ${b.averageChangePct.toStringAsFixed(2)}%
+- % Stocks Above SMA-50: ${b.pctAboveSma50.toStringAsFixed(1)}%
+
+Give a 4-6 line prediction covering:
+1. Tomorrow's likely market direction and sentiment
+2. Key levels or sectors to watch
+3. One actionable suggestion for traders
+
+Keep it brief and practical. No disclaimers needed.''';
+      final result = await GeminiService.send(prompt);
+      if (mounted) setState(() { _aiPrediction = result; _aiLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _aiPrediction = 'Error: ${e.toString().substring(0, 80)}'; _aiLoading = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final breadth = widget.breadth;
     final adRatio = breadth.advanceDeclineRatio;
     final mood = adRatio > 1.5 ? 'Bullish' : adRatio < 0.7 ? 'Bearish' : 'Neutral';
     final moodColor = adRatio > 1.5 ? AppTheme.green : adRatio < 0.7 ? AppTheme.red : Colors.orange;
@@ -98,7 +137,7 @@ class _BreadthView extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(index, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text(widget.index, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
               const SizedBox(height: 4),
               Row(children: [
                 Text('Market Mood: ', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -169,6 +208,53 @@ class _BreadthView extends StatelessWidget {
                   ),
                 ),
               ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // AI Next-day Prediction
+        const SizedBox(height: 12),
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: AppTheme.blue.withValues(alpha: 0.3)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.psychology_rounded, color: AppTheme.blue, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('AI Next-Day Prediction',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.blue))),
+                if (!_aiLoading)
+                  TextButton.icon(
+                    onPressed: _getAiPrediction,
+                    icon: const Icon(Icons.auto_awesome, size: 14),
+                    label: Text(_aiPrediction == null ? 'Get Prediction' : 'Refresh',
+                        style: const TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      foregroundColor: AppTheme.blue,
+                    ),
+                  ),
+                if (_aiLoading)
+                  const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.blue)),
+              ]),
+              if (_aiPrediction != null) ...[
+                const SizedBox(height: 10),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                Text(_aiPrediction!,
+                    style: const TextStyle(fontSize: 12, height: 1.5, color: AppTheme.textPrimary)),
+              ] else if (!_aiLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('Tap "Get Prediction" for an AI-powered next-day market outlook based on current breadth data.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                ),
             ]),
           ),
         ),

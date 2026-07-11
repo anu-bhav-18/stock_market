@@ -10,6 +10,31 @@ from datetime import datetime
 
 FNO_INDICES = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"]
 
+
+def _market_status() -> dict:
+    """Return whether today is a weekend/weekday and a human label."""
+    now = datetime.utcnow()
+    # IST = UTC+5:30
+    ist_hour = (now.hour + 5) % 24
+    ist_min  = (now.minute + 30) % 60
+    weekday  = now.weekday()   # 0=Mon … 6=Sun
+    is_weekend = weekday >= 5  # Saturday or Sunday
+    is_market_hours = (not is_weekend) and (
+        (ist_hour == 9 and ist_min >= 15) or
+        (10 <= ist_hour <= 14) or
+        (ist_hour == 15 and ist_min <= 30)
+    )
+    if is_weekend:
+        status = "Weekend"
+        note   = "Markets closed. Showing last available options data (Friday close)."
+    elif not is_market_hours:
+        status = "Pre/Post Market"
+        note   = "Outside trading hours (9:15–15:30 IST). Data may not reflect live prices."
+    else:
+        status = "Market Open"
+        note   = "Live market data."
+    return {"status": status, "note": note, "is_weekend": is_weekend}
+
 # yfinance ticker symbols for NSE indices
 _INDEX_TICKER = {
     "NIFTY":      "^NSEI",
@@ -86,9 +111,11 @@ def fetch_option_chain(symbol: str) -> dict:
         hist = tk.history(period="10d")
         closes = hist["Close"].tolist() if not hist.empty else []
         volumes = hist["Volume"].tolist() if not hist.empty else []
+        last_data_date = str(hist.index[-1].date()) if not hist.empty else ""
     except Exception:
         closes = []
         volumes = []
+        last_data_date = ""
 
     return {
         "spot": spot,
@@ -98,6 +125,8 @@ def fetch_option_chain(symbol: str) -> dict:
         "symbol": symbol.upper(),
         "hist_closes": closes,
         "hist_volumes": volumes,
+        "last_data_date": last_data_date,
+        "market_status": _market_status(),
     }
 
 
@@ -238,6 +267,8 @@ def parse_option_chain(raw: dict, expiry: str | None = None) -> dict:
     }
 
     parsed["next_day"] = predict_next_day(raw, parsed)
+    parsed["market_status"] = raw.get("market_status", {})
+    parsed["last_data_date"] = raw.get("last_data_date", "")
     return parsed
 
 

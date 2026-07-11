@@ -135,6 +135,31 @@ class _ChainView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Market status banner
+        if (chain.marketStatus == 'Weekend' || chain.marketStatus == 'Pre/Post Market')
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(chain.marketStatus,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.orange)),
+                Text(chain.marketNote,
+                    style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                if (chain.lastDataDate.isNotEmpty)
+                  Text('Last data: ${chain.lastDataDate}',
+                      style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+              ])),
+            ]),
+          ),
+
         // Expiry selector
         if (chain.allExpiries.isNotEmpty)
           SingleChildScrollView(

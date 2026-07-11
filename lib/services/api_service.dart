@@ -111,4 +111,13 @@ class ApiService {
         '/market/52week?index=${Uri.encodeComponent(index)}&type=$type',
         (d) => (d as List).map((e) => MoverStock.fromJson(e as Map<String, dynamic>)).toList(),
       );
+
+  static Future<MarketTrends> fetchMarketTrends({
+    String index = 'Nifty 50',
+    String period = '1wk',
+  }) =>
+      _get(
+        '/market/trends?index=${Uri.encodeComponent(index)}&period=$period',
+        (d) => MarketTrends.fromJson(d as Map<String, dynamic>),
+      );
 }
