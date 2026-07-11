@@ -518,21 +518,20 @@ def market_trends(index: str = Query(default="Nifty 50"), period: str = Query(de
 
     def _check(symbol):
         try:
-            df = yf.download(symbol, period=yf_period, interval="1d",
-                             auto_adjust=True, progress=False, threads=False)
-            if df is None or df.empty or len(df) < 2:
+            df = _history(symbol, period=yf_period)
+            if df.empty or len(df) < 2:
                 return None
             first = float(df["Close"].iloc[0])
             last  = float(df["Close"].iloc[-1])
             if first == 0:
                 return None
-            ret = round((last - first) / first * 100, 2)
-            vol = float(df["Volume"].mean()) if "Volume" in df.columns else 0.0
+            ret  = round((last - first) / first * 100, 2)
+            vol  = float(df["Volume"].mean()) if "Volume" in df.columns else 0.0
             high = float(df["High"].max())
             low  = float(df["Low"].min())
             return {
-                "symbol":    symbol.replace(".NS", ""),
-                "name":      ALL_STOCKS.get(symbol, symbol.replace(".NS", "")),
+                "symbol":      symbol.replace(".NS", ""),
+                "name":        ALL_STOCKS.get(symbol, symbol.replace(".NS", "")),
                 "start_price": round(first, 2),
                 "end_price":   round(last, 2),
                 "return_pct":  ret,
@@ -543,13 +542,18 @@ def market_trends(index: str = Query(default="Nifty 50"), period: str = Query(de
         except Exception:
             return None
 
+    # Cap at 30 symbols to stay within Vercel 10s limit
+    symbols = symbols[:30]
     results = []
-    with ThreadPoolExecutor(max_workers=10) as ex:
+    with ThreadPoolExecutor(max_workers=15) as ex:
         futures = {ex.submit(_check, s): s for s in symbols}
-        for f in as_completed(futures):
-            r = f.result()
-            if r:
-                results.append(r)
+        for f in as_completed(futures, timeout=8):
+            try:
+                r = f.result()
+                if r:
+                    results.append(r)
+            except Exception:
+                pass
 
     gainers = sorted([r for r in results if r["return_pct"] > 0], key=lambda x: x["return_pct"], reverse=True)
     losers  = sorted([r for r in results if r["return_pct"] < 0], key=lambda x: x["return_pct"])

@@ -35,12 +35,20 @@ def _market_status() -> dict:
         note   = "Live market data."
     return {"status": status, "note": note, "is_weekend": is_weekend}
 
-# yfinance ticker symbols for NSE indices
+# yfinance ticker symbols for NSE indices — primary + fallback
 _INDEX_TICKER = {
     "NIFTY":      "^NSEI",
     "BANKNIFTY":  "^NSEBANK",
     "FINNIFTY":   "^CNXFIN",
     "MIDCPNIFTY": "^NSEMDCP50",
+}
+
+# NSE-listed ETF/proxy tickers that have options on Yahoo Finance
+_INDEX_OPTIONS_TICKER = {
+    "NIFTY":      "NIFTY",        # NSE:NIFTY futures symbol sometimes works
+    "BANKNIFTY":  "BANKNIFTY",
+    "FINNIFTY":   "FINNIFTY",
+    "MIDCPNIFTY": "MIDCPNIFTY",
 }
 
 
@@ -52,39 +60,75 @@ def _yf_symbol(symbol: str) -> str:
     return s if s.endswith(".NS") else f"{s}.NS"
 
 
+def _get_spot(tk: yf.Ticker) -> float:
+    """Try multiple methods to get spot/last price."""
+    try:
+        fast = tk.fast_info
+        price = float(getattr(fast, "last_price", None) or getattr(fast, "regularMarketPrice", None) or 0)
+        if price > 0:
+            return price
+    except Exception:
+        pass
+    try:
+        hist = tk.history(period="5d")
+        if not hist.empty:
+            return float(hist["Close"].iloc[-1])
+    except Exception:
+        pass
+    try:
+        info = tk.basic_info
+        price = float(getattr(info, "last_price", 0) or 0)
+        if price > 0:
+            return price
+    except Exception:
+        pass
+    return 0.0
+
+
+def _try_options(ticker_sym: str):
+    """Try to get options expiries for a ticker symbol. Returns (tk, expiries) or raises."""
+    tk = yf.Ticker(ticker_sym)
+    expiries = list(tk.options)   # raises if Yahoo has no options for this ticker
+    return tk, expiries
+
+
 def fetch_option_chain(symbol: str) -> dict:
     """
     Fetch option chain via yfinance.
-    Returns a normalised dict compatible with parse_option_chain.
+    Tries primary index ticker first, then fallback symbols.
     """
-    ticker_sym = _yf_symbol(symbol)
-    tk = yf.Ticker(ticker_sym)
+    sym_upper = symbol.upper()
+    primary_sym = _yf_symbol(sym_upper)
 
-    # Spot price
-    try:
-        fast = tk.fast_info
-        spot = float(getattr(fast, "last_price", None) or getattr(fast, "regularMarketPrice", None) or 0)
-        if spot == 0:
-            hist = tk.history(period="2d")
-            spot = float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
-    except Exception:
+    # Get spot price from index ticker (more reliable for price)
+    spot_tk = yf.Ticker(primary_sym)
+    spot = _get_spot(spot_tk)
+
+    # Try to get options — Yahoo Finance options availability varies
+    # Try tickers in order: primary, then .NS variant if stock
+    candidates = [primary_sym]
+    if sym_upper in _INDEX_TICKER and primary_sym.startswith("^"):
+        # For Indian index options Yahoo rarely has data — try without ^ prefix too
+        candidates.append(primary_sym.lstrip("^"))
+
+    tk = None
+    expiries = []
+    last_err = ""
+    for cand in candidates:
         try:
-            hist = tk.history(period="2d")
-            spot = float(hist["Close"].iloc[-1]) if not hist.empty else 0.0
-        except Exception:
-            spot = 0.0
-
-    # Expiry dates
-    try:
-        expiries = list(tk.options)
-    except Exception:
-        raise RuntimeError(
-            f"No options data available for {symbol} via Yahoo Finance. "
-            "This symbol may not have listed options."
-        )
+            tk, expiries = _try_options(cand)
+            if expiries:
+                break
+        except Exception as e:
+            last_err = str(e)
+            continue
 
     if not expiries:
-        raise RuntimeError(f"No expiry dates found for {symbol}.")
+        raise RuntimeError(
+            f"Options chain not available for {symbol} on Yahoo Finance right now. "
+            f"Yahoo Finance has limited NSE index options coverage — try during market hours (9:15–15:30 IST). "
+            f"Detail: {last_err[:100]}"
+        )
 
     # Fetch nearest 4 expiries
     rows = []
@@ -106,9 +150,9 @@ def fetch_option_chain(symbol: str) -> dict:
     if not rows:
         raise RuntimeError(f"Could not fetch option chain data for {symbol}.")
 
-    # Historical prices for trend analysis (last 10 trading days)
+    # Historical prices for trend analysis — use index ticker for accurate prices
     try:
-        hist = tk.history(period="10d")
+        hist = spot_tk.history(period="10d")
         closes = hist["Close"].tolist() if not hist.empty else []
         volumes = hist["Volume"].tolist() if not hist.empty else []
         last_data_date = str(hist.index[-1].date()) if not hist.empty else ""
