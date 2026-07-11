@@ -393,6 +393,65 @@ class StrikeData {
       );
 }
 
+class NextDayScenario {
+  final String label;
+  final String trigger;
+  final String target;
+  final String stop;
+  const NextDayScenario({required this.label, required this.trigger, required this.target, required this.stop});
+  factory NextDayScenario.fromJson(Map<String, dynamic> j) => NextDayScenario(
+        label: j['label'] as String? ?? '',
+        trigger: j['trigger'] as String? ?? '',
+        target: j['target'] as String? ?? '',
+        stop: j['stop'] as String? ?? '',
+      );
+}
+
+class NextDayPrediction {
+  final String bias;
+  final String biasSummary;
+  final double expectedMove;
+  final double expectedHigh;
+  final double expectedLow;
+  final double dailyMovePct;
+  final double avgIv;
+  final double supportLevel;
+  final double resistanceLevel;
+  final String trend;
+  final double trendPct;
+  final String momentum;
+  final String pcrSignal;
+  final List<NextDayScenario> scenarios;
+
+  const NextDayPrediction({
+    required this.bias, required this.biasSummary,
+    required this.expectedMove, required this.expectedHigh, required this.expectedLow,
+    required this.dailyMovePct, required this.avgIv,
+    required this.supportLevel, required this.resistanceLevel,
+    required this.trend, required this.trendPct, required this.momentum,
+    required this.pcrSignal, required this.scenarios,
+  });
+
+  factory NextDayPrediction.fromJson(Map<String, dynamic> j) => NextDayPrediction(
+        bias: j['bias'] as String? ?? 'Neutral',
+        biasSummary: j['bias_summary'] as String? ?? '',
+        expectedMove: (j['expected_move'] as num? ?? 0).toDouble(),
+        expectedHigh: (j['expected_high'] as num? ?? 0).toDouble(),
+        expectedLow: (j['expected_low'] as num? ?? 0).toDouble(),
+        dailyMovePct: (j['daily_move_pct'] as num? ?? 0).toDouble(),
+        avgIv: (j['avg_iv'] as num? ?? 0).toDouble(),
+        supportLevel: (j['support_level'] as num? ?? 0).toDouble(),
+        resistanceLevel: (j['resistance_level'] as num? ?? 0).toDouble(),
+        trend: j['trend'] as String? ?? 'Sideways',
+        trendPct: (j['trend_pct'] as num? ?? 0).toDouble(),
+        momentum: j['momentum'] as String? ?? 'Neutral',
+        pcrSignal: j['pcr_signal'] as String? ?? 'Neutral',
+        scenarios: (j['scenarios'] as List? ?? [])
+            .map((e) => NextDayScenario.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class OptionsChain {
   final double spot;
   final String selectedExpiry;
@@ -410,6 +469,7 @@ class OptionsChain {
   final double atmCeIv;
   final double atmPeIv;
   final List<StrikeData> strikes;
+  final NextDayPrediction? nextDay;
 
   const OptionsChain({
     required this.spot, required this.selectedExpiry, required this.allExpiries,
@@ -418,7 +478,7 @@ class OptionsChain {
     required this.totalCeOI, required this.totalPeOI,
     required this.atmCeLtp, required this.atmPeLtp,
     required this.atmCeIv, required this.atmPeIv,
-    required this.strikes,
+    required this.strikes, this.nextDay,
   });
 
   factory OptionsChain.fromJson(Map<String, dynamic> j) => OptionsChain(
@@ -440,6 +500,9 @@ class OptionsChain {
         strikes: (j['strikes'] as List)
             .map((e) => StrikeData.fromJson(e as Map<String, dynamic>))
             .toList(),
+        nextDay: j['next_day'] != null
+            ? NextDayPrediction.fromJson(j['next_day'] as Map<String, dynamic>)
+            : null,
       );
 
   double get atmStrike {

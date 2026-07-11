@@ -5,6 +5,7 @@ Works from cloud deployments (no NSE IP block).
 
 import yfinance as yf
 import pandas as pd
+import math
 from datetime import datetime
 
 FNO_INDICES = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"]
@@ -80,12 +81,23 @@ def fetch_option_chain(symbol: str) -> dict:
     if not rows:
         raise RuntimeError(f"Could not fetch option chain data for {symbol}.")
 
+    # Historical prices for trend analysis (last 10 trading days)
+    try:
+        hist = tk.history(period="10d")
+        closes = hist["Close"].tolist() if not hist.empty else []
+        volumes = hist["Volume"].tolist() if not hist.empty else []
+    except Exception:
+        closes = []
+        volumes = []
+
     return {
         "spot": spot,
         "expiries": expiries,
         "fetched_expiries": fetched_expiries,
         "rows": rows,         # list of (expiry, calls_df, puts_df)
         "symbol": symbol.upper(),
+        "hist_closes": closes,
+        "hist_volumes": volumes,
     }
 
 
@@ -204,7 +216,7 @@ def parse_option_chain(raw: dict, expiry: str | None = None) -> dict:
     atm = min((s["strike"] for s in strikes), key=lambda x: abs(x - spot), default=0)
     atm_data = next((s for s in strikes if s["strike"] == atm), {})
 
-    return {
+    parsed = {
         "spot":            spot,
         "selected_expiry": selected_expiry,
         "all_expiries":    all_expiries,
@@ -223,6 +235,126 @@ def parse_option_chain(raw: dict, expiry: str | None = None) -> dict:
         "atm_pe_iv":       atm_data.get("pe_iv", 0),
         "strikes":         strikes,
         "data_source":     "Yahoo Finance",
+    }
+
+    parsed["next_day"] = predict_next_day(raw, parsed)
+    return parsed
+
+
+def predict_next_day(raw: dict, parsed: dict) -> dict:
+    """
+    Generate next trading day prediction for the index.
+    Uses: ATM IV (expected move), OI support/resistance, historical trend.
+    """
+    spot = parsed["spot"]
+    atm_ce_iv = parsed["atm_ce_iv"]
+    atm_pe_iv = parsed["atm_pe_iv"]
+    avg_iv = (atm_ce_iv + atm_pe_iv) / 2 if (atm_ce_iv + atm_pe_iv) > 0 else 15.0
+
+    # 1-day expected move from IV: spot * IV% * sqrt(1/252)
+    daily_move_pct = avg_iv / 100 * math.sqrt(1 / 252)
+    expected_move = round(spot * daily_move_pct, 2)
+    expected_high = round(spot + expected_move, 2)
+    expected_low  = round(spot - expected_move, 2)
+
+    # Support = highest PE OI strike below spot (max writers defending support)
+    strikes = parsed["strikes"]
+    below = [s for s in strikes if s["strike"] < spot]
+    above = [s for s in strikes if s["strike"] > spot]
+
+    support_level = 0.0
+    if below:
+        max_pe_below = max(below, key=lambda s: s["pe_oi"])
+        support_level = max_pe_below["strike"]
+
+    resistance_level = 0.0
+    if above:
+        max_ce_above = max(above, key=lambda s: s["ce_oi"])
+        resistance_level = max_ce_above["strike"]
+
+    # Trend from last 5 closing prices
+    closes = raw.get("hist_closes", [])
+    trend = "Sideways"
+    trend_pct = 0.0
+    if len(closes) >= 5:
+        prev5 = closes[-5]
+        curr  = closes[-1]
+        trend_pct = round((curr - prev5) / prev5 * 100, 2) if prev5 > 0 else 0.0
+        if trend_pct > 1.0:
+            trend = "Uptrend"
+        elif trend_pct < -1.0:
+            trend = "Downtrend"
+        else:
+            trend = "Sideways"
+
+    # RSI-like momentum (simple: last 5 up-days vs down-days)
+    momentum = "Neutral"
+    if len(closes) >= 6:
+        diffs = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        ups   = sum(d for d in diffs if d > 0)
+        downs = sum(abs(d) for d in diffs if d < 0)
+        rsi_approx = 100 - (100 / (1 + ups / downs)) if downs > 0 else 100.0
+        if rsi_approx > 60:
+            momentum = "Bullish"
+        elif rsi_approx < 40:
+            momentum = "Bearish"
+        else:
+            momentum = "Neutral"
+
+    # Combined bias
+    pcr_signal = parsed["pcr_signal"]     # Bullish / Neutral / Bearish
+    signals = [pcr_signal, trend.replace("trend", "").replace("Sideways", "Neutral"),
+               momentum]
+    bull_count = signals.count("Bullish") + signals.count("Up")
+    bear_count = signals.count("Bearish") + signals.count("Down")
+
+    if bull_count >= 2:
+        bias = "Bullish"
+        bias_summary = "Multiple bullish signals — index likely to open/move higher."
+    elif bear_count >= 2:
+        bias = "Bearish"
+        bias_summary = "Multiple bearish signals — index likely to face selling pressure."
+    else:
+        bias = "Neutral"
+        bias_summary = "Mixed signals — expect range-bound or choppy movement."
+
+    # Scenario table
+    scenarios = [
+        {
+            "label": "Bull Case",
+            "trigger": f"Sustain above ₹{support_level:.0f}" if support_level else "Holds current level",
+            "target": f"₹{resistance_level:.0f}" if resistance_level else f"₹{expected_high:.0f}",
+            "stop": f"₹{(spot - expected_move * 0.6):.0f}",
+        },
+        {
+            "label": "Bear Case",
+            "trigger": f"Break below ₹{support_level:.0f}" if support_level else "Falls from current level",
+            "target": f"₹{expected_low:.0f}",
+            "stop": f"₹{(spot + expected_move * 0.6):.0f}",
+        },
+        {
+            "label": "Neutral",
+            "trigger": "No decisive breakout",
+            "target": f"₹{parsed['max_pain']:.0f} (max pain)",
+            "stop": "N/A",
+        },
+    ]
+
+    return {
+        "bias":            bias,
+        "bias_summary":    bias_summary,
+        "expected_move":   expected_move,
+        "expected_high":   expected_high,
+        "expected_low":    expected_low,
+        "daily_move_pct":  round(daily_move_pct * 100, 2),
+        "avg_iv":          round(avg_iv, 2),
+        "support_level":   support_level,
+        "resistance_level": resistance_level,
+        "trend":           trend,
+        "trend_pct":       trend_pct,
+        "momentum":        momentum,
+        "pcr_signal":      pcr_signal,
+        "scenarios":       scenarios,
     }
 
 

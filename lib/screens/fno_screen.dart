@@ -65,15 +65,15 @@ class _FnoScreenState extends State<FnoScreen> {
               children: [
                 CircularProgressIndicator(color: AppTheme.green),
                 SizedBox(height: 12),
-                Text('Fetching NSE live data...', style: TextStyle(color: AppTheme.textSecondary)),
+                Text('Fetching options data...', style: TextStyle(color: AppTheme.textSecondary)),
                 SizedBox(height: 6),
-                Text('This may take 10-20 seconds', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                Text('Via Yahoo Finance — may take 10–20 seconds', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
               ],
             ))
           : _error != null
               ? _ErrorView(error: _error!, onRetry: _load)
               : _chain == null
-                  ? const SizedBox.shrink()
+                  ? _EmptyView(onRetry: _load)
                   : _ChainView(
                       chain: _chain!,
                       onExpiryChanged: (e) => _load(expiry: e),
@@ -165,6 +165,12 @@ class _ChainView extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 14),
+
+        // Next-day prediction card
+        if (chain.nextDay != null) ...[
+          _PredictionCard(pred: chain.nextDay!),
+          const SizedBox(height: 12),
+        ],
 
         // Recommendation card
         _RecommendationCard(chain: chain),
@@ -651,6 +657,324 @@ class _ChainTable extends StatelessWidget {
   }
 }
 
+class _PredictionCard extends StatefulWidget {
+  final NextDayPrediction pred;
+  const _PredictionCard({required this.pred});
+  @override
+  State<_PredictionCard> createState() => _PredictionCardState();
+}
+
+class _PredictionCardState extends State<_PredictionCard> {
+  bool _expanded = true;
+
+  Color get _biasColor {
+    switch (widget.pred.bias) {
+      case 'Bullish': return AppTheme.green;
+      case 'Bearish': return AppTheme.red;
+      default: return Colors.orange;
+    }
+  }
+
+  IconData get _biasIcon {
+    switch (widget.pred.bias) {
+      case 'Bullish': return Icons.arrow_circle_up_rounded;
+      case 'Bearish': return Icons.arrow_circle_down_rounded;
+      default: return Icons.radio_button_unchecked;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pred = widget.pred;
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: _biasColor.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          // Header — always visible
+          InkWell(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: _biasColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(_biasIcon, color: _biasColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Tomorrow\'s Outlook',
+                            style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                        Text(pred.bias,
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _biasColor)),
+                        Text(pred.biasSummary,
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                            maxLines: 2),
+                      ],
+                    ),
+                  ),
+                  Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+                      color: AppTheme.textSecondary),
+                ],
+              ),
+            ),
+          ),
+
+          if (_expanded) ...[
+            const Divider(height: 1),
+
+            // Expected range row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Expected Range (1-day)',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _RangeBox(
+                      label: 'Low',
+                      value: '₹${pred.expectedLow.toStringAsFixed(0)}',
+                      color: AppTheme.red,
+                    )),
+                    const SizedBox(width: 6),
+                    Expanded(child: _RangeBox(
+                      label: 'Move ±',
+                      value: '₹${pred.expectedMove.toStringAsFixed(0)} (${pred.dailyMovePct.toStringAsFixed(2)}%)',
+                      color: Colors.orange,
+                    )),
+                    const SizedBox(width: 6),
+                    Expanded(child: _RangeBox(
+                      label: 'High',
+                      value: '₹${pred.expectedHigh.toStringAsFixed(0)}',
+                      color: AppTheme.green,
+                    )),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Key levels
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                Expanded(child: _LevelTile(
+                  label: 'Support',
+                  value: pred.supportLevel > 0 ? '₹${pred.supportLevel.toStringAsFixed(0)}' : 'N/A',
+                  color: AppTheme.green,
+                  icon: Icons.arrow_downward_rounded,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _LevelTile(
+                  label: 'Resistance',
+                  value: pred.resistanceLevel > 0 ? '₹${pred.resistanceLevel.toStringAsFixed(0)}' : 'N/A',
+                  color: AppTheme.red,
+                  icon: Icons.arrow_upward_rounded,
+                )),
+              ]),
+            ),
+            const SizedBox(height: 12),
+
+            // Signal tags
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                _SignalTag(label: '5d Trend', value: '${pred.trend} (${pred.trendPct >= 0 ? '+' : ''}${pred.trendPct.toStringAsFixed(2)}%)'),
+                const SizedBox(width: 6),
+                _SignalTag(label: 'Momentum', value: pred.momentum),
+                const SizedBox(width: 6),
+                _SignalTag(label: 'PCR', value: pred.pcrSignal),
+              ]),
+            ),
+            const SizedBox(height: 12),
+
+            // Scenarios
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Scenarios', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
+                  const SizedBox(height: 6),
+                  ...pred.scenarios.map((s) => _ScenarioRow(scenario: s)),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Text(
+                '⚠ Prediction based on IV & OI data. Not financial advice.',
+                style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RangeBox extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  const _RangeBox({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
+    ),
+    child: Column(children: [
+      Text(label, style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 3),
+      Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
+          textAlign: TextAlign.center, maxLines: 2),
+    ]),
+  );
+}
+
+class _LevelTile extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  final IconData icon;
+  const _LevelTile({required this.label, required this.value, required this.color, required this.icon});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(children: [
+      Icon(icon, color: color, size: 14),
+      const SizedBox(width: 6),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+      ]),
+    ]),
+  );
+}
+
+class _SignalTag extends StatelessWidget {
+  final String label, value;
+  const _SignalTag({required this.label, required this.value});
+
+  Color get _color {
+    if (value.contains('Bull') || value.contains('Up')) return AppTheme.green;
+    if (value.contains('Bear') || value.contains('Down')) return AppTheme.red;
+    return Colors.orange;
+  }
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(children: [
+        Text(label, style: const TextStyle(fontSize: 8, color: AppTheme.textSecondary)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _color),
+            textAlign: TextAlign.center, maxLines: 2),
+      ]),
+    ),
+  );
+}
+
+class _ScenarioRow extends StatelessWidget {
+  final NextDayScenario scenario;
+  const _ScenarioRow({required this.scenario});
+
+  Color get _color {
+    if (scenario.label == 'Bull Case') return AppTheme.green;
+    if (scenario.label == 'Bear Case') return AppTheme.red;
+    return Colors.orange;
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        width: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        decoration: BoxDecoration(
+          color: _color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(scenario.label,
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _color),
+            textAlign: TextAlign.center),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('If: ${scenario.trigger}', style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
+          Text('Target: ${scenario.target}  |  Stop: ${scenario.stop}',
+              style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+        ]),
+      ),
+    ]),
+  );
+}
+
+class _EmptyView extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _EmptyView({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.candlestick_chart_outlined, size: 56, color: AppTheme.textSecondary),
+            const SizedBox(height: 14),
+            const Text('No options data yet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 8),
+            const Text(
+              'Options chain data is fetched from Yahoo Finance.\nTap Refresh to try loading.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Refresh'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ErrorView extends StatelessWidget {
   final String error;
   final VoidCallback onRetry;
@@ -664,9 +988,9 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off, size: 48, color: AppTheme.textSecondary),
+            const Icon(Icons.wifi_off_rounded, size: 48, color: AppTheme.textSecondary),
             const SizedBox(height: 12),
-            const Text('NSE data unavailable', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text('Options data unavailable', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text(
               error.length > 200 ? '${error.substring(0, 200)}...' : error,
@@ -675,12 +999,16 @@ class _ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'NSE blocks cloud server IPs.\nTry during market hours (9:15 AM – 3:30 PM IST).',
+              'Data is sourced from Yahoo Finance.\nAvailability may vary outside market hours (9:15 AM – 3:30 PM IST).',
               style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Retry'),
+            ),
           ],
         ),
       ),
