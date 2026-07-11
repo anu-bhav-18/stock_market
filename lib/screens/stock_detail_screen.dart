@@ -7,6 +7,7 @@ import '../services/gemini_service.dart';
 import '../theme.dart';
 import '../widgets/stock_chart.dart';
 import 'ai_chat_screen.dart';
+import 'fundamentals_screen.dart';
 
 class StockDetailScreen extends StatefulWidget {
   final String symbol;
@@ -176,6 +177,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart_outlined),
+            tooltip: 'Fundamentals',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => FundamentalsScreen(symbol: widget.symbol, name: widget.name))),
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             tooltip: 'Set Price Alert',

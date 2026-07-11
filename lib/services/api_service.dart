@@ -120,4 +120,11 @@ class ApiService {
         '/market/trends?index=${Uri.encodeComponent(index)}&period=$period',
         (d) => MarketTrends.fromJson(d as Map<String, dynamic>),
       );
+
+  static Future<StockFundamentals> fetchFundamentals(String symbol) =>
+      _get('/stock/fundamentals/$symbol',
+          (d) => StockFundamentals.fromJson(d as Map<String, dynamic>));
+
+  static Future<IndiaVix> fetchVix() =>
+      _get('/market/vix', (d) => IndiaVix.fromJson(d as Map<String, dynamic>));
 }

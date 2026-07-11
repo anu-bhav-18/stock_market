@@ -577,3 +577,85 @@ class MarketTrends {
             .toList(),
       );
 }
+
+class StockFundamentals {
+  final double? marketCap;
+  final double? peRatio;
+  final double? forwardPe;
+  final double? pbRatio;
+  final double? eps;
+  final double? forwardEps;
+  final double? dividendYield;
+  final double? beta;
+  final double? debtToEquity;
+  final double? roe;
+  final double? revenueGrowth;
+  final double? profitMargin;
+  final double? high52w;
+  final double? low52w;
+  final double? avgVolume;
+  final String sector;
+  final String industry;
+  final double? vwap20d;
+  final Map<String, double> fibonacci;
+
+  const StockFundamentals({
+    this.marketCap, this.peRatio, this.forwardPe, this.pbRatio,
+    this.eps, this.forwardEps, this.dividendYield, this.beta,
+    this.debtToEquity, this.roe, this.revenueGrowth, this.profitMargin,
+    this.high52w, this.low52w, this.avgVolume,
+    this.sector = '', this.industry = '', this.vwap20d,
+    this.fibonacci = const {},
+  });
+
+  factory StockFundamentals.fromJson(Map<String, dynamic> j) {
+    double? _d(String k) => j[k] == null ? null : (j[k] as num).toDouble();
+    final fibRaw = j['fibonacci'] as Map<String, dynamic>? ?? {};
+    return StockFundamentals(
+      marketCap: _d('market_cap'), peRatio: _d('pe_ratio'), forwardPe: _d('forward_pe'),
+      pbRatio: _d('pb_ratio'), eps: _d('eps'), forwardEps: _d('forward_eps'),
+      dividendYield: _d('dividend_yield'), beta: _d('beta'),
+      debtToEquity: _d('debt_to_equity'), roe: _d('roe'),
+      revenueGrowth: _d('revenue_growth'), profitMargin: _d('profit_margin'),
+      high52w: _d('high_52w'), low52w: _d('low_52w'), avgVolume: _d('avg_volume'),
+      sector: j['sector'] as String? ?? '',
+      industry: j['industry'] as String? ?? '',
+      vwap20d: _d('vwap_20d'),
+      fibonacci: fibRaw.map((k, v) => MapEntry(k, (v as num).toDouble())),
+    );
+  }
+}
+
+class VixPoint {
+  final String date;
+  final double value;
+  const VixPoint({required this.date, required this.value});
+  factory VixPoint.fromJson(Map<String, dynamic> j) =>
+      VixPoint(date: j['date'] as String, value: (j['value'] as num).toDouble());
+}
+
+class IndiaVix {
+  final double current;
+  final double change;
+  final double changePct;
+  final String sentiment;
+  final String note;
+  final String color;
+  final List<VixPoint> history;
+  const IndiaVix({
+    required this.current, required this.change, required this.changePct,
+    required this.sentiment, required this.note, required this.color,
+    required this.history,
+  });
+  factory IndiaVix.fromJson(Map<String, dynamic> j) => IndiaVix(
+        current: (j['current'] as num).toDouble(),
+        change: (j['change'] as num? ?? 0).toDouble(),
+        changePct: (j['change_pct'] as num? ?? 0).toDouble(),
+        sentiment: j['sentiment'] as String? ?? '',
+        note: j['note'] as String? ?? '',
+        color: j['color'] as String? ?? 'orange',
+        history: (j['history'] as List? ?? [])
+            .map((e) => VixPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}

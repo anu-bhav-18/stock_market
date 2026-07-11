@@ -362,6 +362,116 @@ def fno_symbols():
     return JSONResponse(content=_jsonify({"indices": indices, "stocks": fno_stocks[:50]}))
 
 
+@app.get("/stock/fundamentals/{symbol}")
+def stock_fundamentals(symbol: str):
+    """P/E, P/B, EPS, Market Cap, Dividends, Debt/Equity, ROE from yfinance."""
+    try:
+        tk = yf.Ticker(symbol)
+        info = tk.info or {}
+        def _v(key, default=None):
+            val = info.get(key, default)
+            return None if val in (None, "N/A", "", "None") else val
+
+        # VWAP from last 20 trading days
+        hist = tk.history(period="20d")
+        vwap = None
+        if not hist.empty and "Volume" in hist.columns:
+            tp = (hist["High"] + hist["Low"] + hist["Close"]) / 3
+            total_vol = hist["Volume"].sum()
+            vwap = float((tp * hist["Volume"]).sum() / total_vol) if total_vol > 0 else None
+
+        # Fibonacci levels from 52-week range
+        high52 = _v("fiftyTwoWeekHigh")
+        low52  = _v("fiftyTwoWeekLow")
+        fib = {}
+        if high52 and low52:
+            diff = float(high52) - float(low52)
+            fib = {
+                "0":    round(float(low52), 2),
+                "23.6": round(float(high52) - diff * 0.236, 2),
+                "38.2": round(float(high52) - diff * 0.382, 2),
+                "50":   round(float(high52) - diff * 0.500, 2),
+                "61.8": round(float(high52) - diff * 0.618, 2),
+                "78.6": round(float(high52) - diff * 0.786, 2),
+                "100":  round(float(high52), 2),
+            }
+
+        return JSONResponse(content=_jsonify({
+            "symbol":          symbol,
+            "market_cap":      _v("marketCap"),
+            "pe_ratio":        _v("trailingPE"),
+            "forward_pe":      _v("forwardPE"),
+            "pb_ratio":        _v("priceToBook"),
+            "eps":             _v("trailingEps"),
+            "forward_eps":     _v("forwardEps"),
+            "dividend_yield":  _v("dividendYield"),
+            "beta":            _v("beta"),
+            "debt_to_equity":  _v("debtToEquity"),
+            "roe":             _v("returnOnEquity"),
+            "revenue_growth":  _v("revenueGrowth"),
+            "profit_margin":   _v("profitMargins"),
+            "high_52w":        high52,
+            "low_52w":         low52,
+            "avg_volume":      _v("averageVolume"),
+            "sector":          _v("sector", ""),
+            "industry":        _v("industry", ""),
+            "vwap_20d":        round(vwap, 2) if vwap else None,
+            "fibonacci":       fib,
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/market/vix")
+def market_vix():
+    """India VIX + 20-day history."""
+    try:
+        tk   = yf.Ticker("^INDIAVIX")
+        fast = tk.fast_info
+        current = float(getattr(fast, "last_price", None) or 0)
+        hist = tk.history(period="30d")
+        history = []
+        if not hist.empty:
+            for dt, row in hist.iterrows():
+                history.append({"date": str(dt.date()), "value": round(float(row["Close"]), 2)})
+            if current == 0 and history:
+                current = history[-1]["value"]
+
+        # VIX interpretation
+        if current < 15:
+            sentiment = "Low Fear"
+            note = "Market is calm. Good time to buy options (cheap premiums)."
+            color = "green"
+        elif current < 20:
+            sentiment = "Moderate"
+            note = "Normal volatility. Options fairly priced."
+            color = "orange"
+        elif current < 25:
+            sentiment = "Elevated Fear"
+            note = "Market is nervous. Consider buying puts for protection."
+            color = "red"
+        else:
+            sentiment = "High Fear"
+            note = "Panic zone. Contrarian buy signal for the brave."
+            color = "red"
+
+        prev = history[-2]["value"] if len(history) >= 2 else current
+        change = round(current - prev, 2)
+        change_pct = round((current - prev) / prev * 100, 2) if prev > 0 else 0.0
+
+        return JSONResponse(content=_jsonify({
+            "current":    round(current, 2),
+            "change":     change,
+            "change_pct": change_pct,
+            "sentiment":  sentiment,
+            "note":       note,
+            "color":      color,
+            "history":    history[-20:],
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @app.get("/fno/chain/{symbol}")
 def option_chain(symbol: str, expiry: str = Query(default=None)):
     result = None
