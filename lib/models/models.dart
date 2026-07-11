@@ -473,6 +473,9 @@ class OptionsChain {
   final String marketStatus;
   final String marketNote;
   final String lastDataDate;
+  final bool isSynthetic;
+  final double histVolatility;
+  final String dataSource;
 
   const OptionsChain({
     required this.spot, required this.selectedExpiry, required this.allExpiries,
@@ -483,6 +486,7 @@ class OptionsChain {
     required this.atmCeIv, required this.atmPeIv,
     required this.strikes, this.nextDay,
     this.marketStatus = '', this.marketNote = '', this.lastDataDate = '',
+    this.isSynthetic = false, this.histVolatility = 0, this.dataSource = '',
   });
 
   factory OptionsChain.fromJson(Map<String, dynamic> j) {
@@ -512,6 +516,9 @@ class OptionsChain {
       marketStatus: ms['status'] as String? ?? '',
       marketNote: ms['note'] as String? ?? '',
       lastDataDate: j['last_data_date'] as String? ?? '',
+      isSynthetic: j['is_synthetic'] as bool? ?? false,
+      histVolatility: (j['hist_volatility'] as num? ?? 0).toDouble(),
+      dataSource: j['data_source'] as String? ?? '',
     );
   }
 

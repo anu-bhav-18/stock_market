@@ -135,6 +135,30 @@ class _ChainView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Synthetic data banner
+        if (chain.isSynthetic)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.blue.withValues(alpha: 0.25)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.auto_graph_rounded, color: AppTheme.blue, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Theoretical Prices (Black-Scholes)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.blue)),
+                Text(
+                  'Live NSE options data unavailable. Prices calculated using ${chain.histVolatility.toStringAsFixed(1)}% historical volatility. OI values are illustrative.',
+                  style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                ),
+              ])),
+            ]),
+          ),
+
         // Market status banner
         if (chain.marketStatus == 'Weekend' || chain.marketStatus == 'Pre/Post Market')
           Container(

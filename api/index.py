@@ -37,7 +37,8 @@ from .utils.indicators import add_indicators, technical_signal, historical_retur
 from .utils.stock_list import (
     ALL_STOCKS, INDICES, get_all_symbols, get_symbols_for_index, get_index_names
 )
-from .utils.fno import fetch_option_chain, parse_option_chain, FNO_INDICES
+from .utils.fno import fetch_option_chain, parse_option_chain, FNO_INDICES, _get_spot, _yf_symbol
+from .utils.fno_bs import build_synthetic_chain
 from .utils.intraday import intraday_signal, scan_intraday, intraday_chart
 from .utils.levels import pivot_points, support_resistance
 from .utils.patterns import detect_patterns
@@ -363,23 +364,50 @@ def fno_symbols():
 
 @app.get("/fno/chain/{symbol}")
 def option_chain(symbol: str, expiry: str = Query(default=None)):
+    result = None
+
+    # 1. Try live Yahoo Finance options chain
     try:
-        raw = fetch_option_chain(symbol)
+        raw    = fetch_option_chain(symbol)
         result = parse_option_chain(raw, expiry=expiry)
+    except Exception:
+        pass  # fall through to synthetic
 
-        spot = result["spot"]
-        strikes = result["strikes"]
-        if spot > 0 and strikes:
-            strikes_sorted = sorted(strikes, key=lambda s: abs(s["strike"] - spot))
-            atm_strikes = set(s["strike"] for s in strikes_sorted[:31])
-            result["strikes"] = [s for s in strikes if s["strike"] in atm_strikes]
-            result["strikes"].sort(key=lambda s: s["strike"])
+    # 2. Fallback: Black-Scholes synthetic chain (always works)
+    if result is None:
+        try:
+            ticker_sym = _yf_symbol(symbol.upper())
+            import yfinance as yf
+            spot_tk = yf.Ticker(ticker_sym)
+            spot    = _get_spot(spot_tk)
+            if spot <= 0:
+                raise RuntimeError(f"Could not fetch spot price for {symbol}.")
+            result = build_synthetic_chain(symbol, spot)
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Options data unavailable: {e}")
 
-        return JSONResponse(content=_jsonify(result))
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Options data unavailable: {str(e)}")
+    # Trim strikes to ATM ±15 around spot
+    spot    = result.get("spot", 0)
+    strikes = result.get("strikes", [])
+    if spot > 0 and strikes:
+        strikes_sorted = sorted(strikes, key=lambda s: abs(s["strike"] - spot))
+        atm_strikes    = set(s["strike"] for s in strikes_sorted[:31])
+        result["strikes"] = sorted(
+            [s for s in strikes if s["strike"] in atm_strikes],
+            key=lambda s: s["strike"],
+        )
+
+    # Add next-day prediction if not already present
+    if "next_day" not in result:
+        try:
+            from .utils.fno import predict_next_day
+            result["next_day"] = predict_next_day(
+                {"hist_closes": []}, result
+            )
+        except Exception:
+            pass
+
+    return JSONResponse(content=_jsonify(result))
 
 
 # ── News ──────────────────────────────────────────────────────────────────────
